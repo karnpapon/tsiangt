@@ -1,9 +1,14 @@
-use ignore::Walk;
+use std::process::Command;
 use std::fs;
-
+use std::fs::File;
+use std::io::BufReader;
+use std::cmp::Ordering;
+use std::path::PathBuf;
 use std::fmt::{self, Formatter, Display};
 
-//use shellfn::shell;
+use ignore::{ Walk, DirEntry };
+use rodio::{Device, Sink};
+use id3::Tag;
 use std::error;
 
 
@@ -79,6 +84,7 @@ pub struct SongData<'a> {
     pub active: bool,
     pub id: usize
 }
+
 
 // TODO: needs dynamic data.
 impl<'a> SongData<'a> {
@@ -162,15 +168,6 @@ impl<I> ListState<I>{
     }
 }
 
-//impl<I> Display for ListState<I> {
-//    // `f` is a buffer, and this method must write the formatted string into it
-//    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-//        // `write!` is like `format!`, but it will write the formatted string
-//        // into a buffer (the first argument)
-//        write!(f, "{}", self)
-//    }
-//}
-
 pub struct ControlState<'a> {
     pub titles: Vec<&'a str>,
     pub index: usize
@@ -232,18 +229,141 @@ impl<'a> TabState<'a>{
     }
 } 
 
-//pub struct Server<'a> {
-//    pub name: &'a str,
-//    pub location: &'a str,
-//    pub coords: (f64, f64),
-//    pub status: &'a str,
-//}
+#[derive(Clone, Debug, Eq)]
+pub struct Track {
+    pub file_path: String,
+    pub title: String,
+    pub artist: String,
+    pub album_artist: String,
+    pub album: String,
+    pub year: i32,
+    pub track_num: u32,
+    pub duration: u32,
+}
+
+impl Track {
+
+    pub fn new(path: PathBuf) -> Result<Track, ()> {
+        let tag = Tag::read_from_path(&path);
+
+        if tag.is_err() {
+            return Err(());
+        }
+
+        let safe_tag = Tag::read_from_path(&path).unwrap();
+
+        let mut title: String = "".to_string();
+        if let Some(s) = safe_tag.title() {
+            title = s.to_string();
+        }
+
+        let mut artist: String = "".to_string();
+        if let Some(s) = safe_tag.artist() {
+            artist = s.to_string();
+        }
+
+        let mut album: String = "".to_string();
+        if let Some(s) = safe_tag.album() {
+            album = s.to_string();
+        }
+
+        let album_artist;
+        match safe_tag.album_artist() {
+            Some(s) => {
+                album_artist = s.to_string();
+            }
+            None => {
+                album_artist = artist.clone();
+            }
+        }
+
+        let mut year: i32 = 0;
+        if let Some(x) = safe_tag.year() {
+            year = x;
+        }
+
+        let mut track_num: u32 = 0;
+        if let Some(x) = safe_tag.track() {
+            track_num = x;
+        }
+
+        let mut duration: u32 = 0;
+        if let Some(x) = safe_tag.duration() {
+            duration = x;
+        }
+
+        Ok(Track {
+            file_path: path.as_path().to_string_lossy().to_string(),
+            title,
+            artist,
+            album_artist,
+            album,
+            year,
+            track_num,
+            duration,
+        })
+    }
+}
+
+impl PartialOrd for Track {
+    fn partial_cmp(&self, other: &Track) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Track {
+    fn cmp(&self, other: &Track) -> Ordering {
+        self.track_num.cmp(&other.track_num)
+    }
+}
+
+impl PartialEq for Track {
+    fn eq(&self, other: &Track) -> bool {
+        self.file_path == other.file_path
+    }
+}
+
+
+pub struct Player{
+   pub device: Device, 
+   pub handler: Sink
+}
+
+impl Player {
+    pub fn new(d: Device) -> Player {
+        Player{
+            handler: Sink::new(&d),
+            device: d
+        }
+    }
+
+    pub fn play(&mut self, track: Track){
+        self.handler = Sink::new(&self.device);
+        let file = File::open(&track.file_path).unwrap();
+        let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+        self.handler.append(source);
+    }
+
+    pub fn pause(&mut self){
+        if self.handler.is_paused() {
+            self.handler.play();
+        } else {
+            self.handler.pause();
+        }
+    }
+
+    pub fn stop(&mut self) {
+        self.handler = Sink::new(&self.device);
+    }
+}
 
 
 pub struct App<'a> {
+    pub player: Player,
     pub title: &'a str,
     pub directory: ListState<&'a str>,
-    pub playlist: ListState<SongData <'a> >,
+    //pub playlist: ListState<SongData <'a> >,
+    pub playlist: ListState<Track>,
     pub pools: ListState<&'a str>,
     pub tabs: TabState<'a>,
     pub is_quit: bool,
@@ -252,12 +372,13 @@ pub struct App<'a> {
 
 
 impl<'a> App<'a> {
-    pub fn new(title: &'a str) -> App<'a> {
+    pub fn new(title: &'a str, player: Player) -> App<'a> {
         return 
         App{
             title,
+            player,
             directory: ListState::new(LIST.to_vec()),
-            playlist: ListState::new( SongData::new() ),
+            playlist: ListState::new(get_tracks_from_path().to_vec()),
             pools: ListState::new(POOL.to_vec()),
             current_playback: None,
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
@@ -291,21 +412,25 @@ impl<'a> App<'a> {
 
 
      pub fn on_press_enter(&mut self) {
-        //TODO: single active state. 
+
         let i = self.playlist.selected;
-        match self.tabs.get_current_title(){
-            "playlist" => {
-                self.playlist.items[i].active = !self.playlist.items[i].active;
-            },
-            _ => {}
-        }
-        self.handle_shell();
+        self.player.play(self.playlist.items[i].clone());
+
+        //TODO: single active state. 
+      //  match self.tabs.get_current_title(){
+      //      "playlist" => {
+      //          self.playlist.items[i].active = !self.playlist.items[i].active;
+      //      },
+      //      _ => {}
+      //  }
+      //  self.handle_shell();
     }
 
 
     pub fn on_key(&mut self, c: char){
         match c {
             '\n' => {self.on_press_enter();},
+            ' ' => { self.player.pause()},
             'q' => { self.is_quit = true;},
             'j' => { self.on_key_down()},
             'k' => { self.on_key_up()},
@@ -318,26 +443,57 @@ impl<'a> App<'a> {
         }
     }
 
-   
-    pub fn get_path(&self){
-        for result in Walk::new("./") {
-   	 match result {
-   	     Ok(entry) => println!("{}", entry.path().display()),
-   	     Err(err) => println!("ERROR: {}", err),
-   	 }
-	} 
-    }
-
-
    //  pub fn handle_shell(&self) ->  Result<(), Box<dyn error::Error>> {
    //     run("/Users/mac/Desktop/test.mid");
    //     Ok( () )
    //  }
    //
    pub fn handle_shell(&self){
-        sh!("timidity /Users/mac/Desktop/test.mid");
+       // let your_command = "timidity /Users/gingliu/Desktop/test.mid";
+       // let output = Command::new("bash")
+       // .arg("-c").arg(your_command)
+       // .output().expect("cannot spawn bash")
+       // .stdout;
+       // println!("{}", String::from_utf8(output).expect("Output is not utf-8"));
+        //sh!("timidity /Users/gingliu/Desktop/test.mid");
    }
 
 }
 
+
+
+fn is_music(entry: &DirEntry) -> bool {
+    let metadata = fs::metadata(entry.path()).unwrap();
+    if metadata.is_dir() {
+        return false;
+    }
+
+    if let Some(extension) = entry.path().extension() {
+        match extension.to_str() {
+            Some("mp3") => return true,
+            Some("flac") => return true,
+            Some("ogg") => return true,
+            _ => return false,
+        };
+    } else {
+        return false;
+    }
+}
+
+
+pub fn get_tracks_from_path() -> Vec<Track>{
+        let mut lists = Vec::new();
+        for result in Walk::new("/Users/gingliu/Desktop/Ken Kobayashi - sizzle(1987)") {
+        if let Ok(entry) = result {
+            if is_music(&entry) {
+                let track = Track::new(entry.into_path());
+                if let Ok(t) = track{
+                   lists.push(t);
+                }
+            }
+        }
+	}
+
+        lists
+}
 

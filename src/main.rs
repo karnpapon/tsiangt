@@ -3,16 +3,21 @@ mod App;
 mod events;
 mod ui;
 
-
-
 use std::io;
+use std::path::PathBuf;
+use std::fs;
+
+
 use termion::raw::IntoRawMode;
 use termion::event::Key;
 use tui::Terminal;
 use termion::screen::AlternateScreen;
 use tui::backend::TermionBackend;
+use ignore::{Walk, DirEntry};
 
 use crate::App::App as Application;
+use crate::App::*;
+use crate::App::{Player, Track};
 use crate::events::{ Events, Event };
 
 
@@ -34,7 +39,8 @@ extern crate shells;
 fn main() -> Result<(), failure::Error> {
 
     let events = Events::new();
-
+    let device = rodio::default_output_device().expect("No audio output device found");
+    //let track = get_tracks_from_path();
 
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = AlternateScreen::from(stdout); // important!, separated into new screen (without data overlay with standard terminal screen).
@@ -42,7 +48,9 @@ fn main() -> Result<(), failure::Error> {
     let mut terminal = Terminal::new(backend)?;
     terminal.hide_cursor()?; // hide native terminal cursor.
 
-    let mut app = Application::new("terminal-music-player");
+
+    let mut audio = Player::new(device);
+    let mut app = Application::new("terminal-music-player", audio);
 
     loop {
         ui::draw(&mut terminal, &app)?;
@@ -72,6 +80,7 @@ fn main() -> Result<(), failure::Error> {
         Ok( () )
    
 }
+
 
 //#[shell]
 //fn list_modified(dir: &str) -> Result<impl Iterator<Item=String>, Box<error::Error>> { r#"

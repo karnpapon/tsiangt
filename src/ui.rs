@@ -62,7 +62,7 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
                 item.title.to_string().to_owned(),
                 item.artist.to_string().to_owned(),
                 item.album.to_string().to_owned(),
-                item.length.to_string().to_owned(),
+                item.duration.to_string().to_owned(),
             ],
         })
         .collect::<Vec<TableItem>>();
@@ -173,14 +173,16 @@ fn draw_table<B>(
 {
     let selected_style = get_color(highlight_state);
         //.modifier(Modifier::BOLD);
+   // let mut track_playing_index: bool = false;
 
-  //  let track_playing_index = match &app.current_playback {
-  //      Some(ctx) => items.iter().position(|t| match &ctx.item {
-  //          Some(item) => Some(t.id.to_owned()) == item.id,
-  //          None => false,
-  //      }),
-  //      None => None,
-  //  };
+
+   // for (item_index , item) in app.playlist.items.iter().enumerate(){
+   //     if item_index == selected_index {
+   //        track_playing_index = true
+   //     } else {
+   //        track_playing_index = false
+   //     }
+   // };
 
     let rows = items.iter().enumerate().map(|(i, item)| {
         let mut formatted_row = item.format.clone();
@@ -194,11 +196,10 @@ fn draw_table<B>(
             formatted_row[0] = format!("   {}", &formatted_row[0]);
         }
 
-
-        if app.playlist.items[i].active {
-            style = Style::default().fg(Color::Red);
-        }
-        // Return row styled data
+      // if item.id == 2 {
+      //     style = Style::default().fg(Color::Red);
+      // }
+         //Return row styled data
         Row::StyledData(formatted_row.into_iter(), style)
     });
 
