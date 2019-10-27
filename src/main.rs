@@ -38,24 +38,23 @@ extern crate shells;
 
 fn main() -> Result<(), failure::Error> {
 
-    let events = Events::new();
+    let handle_events = Events::new();
     let device = rodio::default_output_device().expect("No audio output device found");
-    //let track = get_tracks_from_path();
+    let audio = Player::new(device);
+    let mut app = Application::new("/tsiangt/", audio);  
 
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = AlternateScreen::from(stdout); // important!, separated into new screen (without data overlay with standard terminal screen).
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.hide_cursor()?; // hide native terminal cursor.
+    terminal.clear()?;
 
-
-    let mut audio = Player::new(device);
-    let mut app = Application::new("/tsiangt/", audio);
 
     loop {
         ui::draw(&mut terminal, &app)?;
-         match events.next()?{
-             Event::Input(key) => match key {
+        if let Event::Input(input) = handle_events.next()? {
+         match input {
                  Key::Char(c) => { app.on_key(c)}, 
                  Key::Up => { app.on_key_up() },
                  Key::Down => { app.on_key_down();},
@@ -70,7 +69,7 @@ fn main() -> Result<(), failure::Error> {
                      _ => {}
                  },
                  _ => {}
-             },
+             }
          }
 
          if app.is_quit {

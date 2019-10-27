@@ -15,10 +15,10 @@ pub struct TableHeader<'a> {
     width: u16,
 }
 
-
+#[derive(Debug,Clone)]
 pub struct TableItem {
-    id: String,
-    format: Vec<String>,
+   pub id: String,
+   pub format: Vec<String>,
 }
 
 
@@ -62,7 +62,7 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
                 item.title.to_string().to_owned(),
                 item.artist.to_string().to_owned(),
                 item.album.to_string().to_owned(),
-                item.duration.to_string().to_owned(),
+                //item.duration.to_string().to_owned(),
             ],
         })
         .collect::<Vec<TableItem>>();
@@ -83,10 +83,10 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
             text: "Album",
             width: get_percentage_width(area.width, 0.25),
         },
-        TableHeader {
-            text: "Length",
-            width: get_percentage_width(area.width, 0.1),
-        },
+       // TableHeader {
+       //     text: "Length",
+       //     width: get_percentage_width(area.width, 0.1),
+       // },
     ];
 
 
@@ -187,7 +187,6 @@ fn draw_table<B>(
     let rows = items.iter().enumerate().map(|(i, item)| {
         let mut formatted_row = item.format.clone();
         let mut style = Style::default().fg(Color::White); // default styling
-            //.;
 
         if i == selected_index {
             formatted_row[0] = format!(" > {}", &formatted_row[0]);
@@ -197,7 +196,7 @@ fn draw_table<B>(
         }
 
         match app.playing_track_index {
-            Some(x) => if i == x { style = Style::default().fg(Color::Red); },
+            Some(x) => if i == x { style = Style::default().fg(Color::Red);},
             None => {}
         }
 
@@ -209,6 +208,26 @@ fn draw_table<B>(
 
     let widths = header_columns.iter().map(|h| h.width).collect::<Vec<u16>>();
 
+    //SelectableList::default()
+    //    .block(
+    //        Block::default()
+    //            .borders(Borders::ALL)
+    //            .style(Style::default().fg(Color::White))
+    //            .title(title)
+    //            .title_style(get_color(highlight_state))
+    //            .border_style(get_color(highlight_state)),
+    //    )
+    //    .items(&items)
+    //    .select(Some( app.playlist.selected ))
+    //    .style(Style::default().fg(Color::White))
+    //    //.widths(&widths)
+    //    .render(f, area);
+
+
+    let chunks = Layout::default()
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
+        .split(area);
+    
     Table::new(header_columns.iter().map(|h| h.text), rows)
         .block(
             Block::default()

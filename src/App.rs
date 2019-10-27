@@ -447,8 +447,6 @@ impl<'a> App<'a> {
 
     }
 
-    
-
 
     pub fn on_key(&mut self, c: char){
         match c {
