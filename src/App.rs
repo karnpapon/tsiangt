@@ -18,7 +18,19 @@ use std::error;
 //"# }
 
 
-const LIST: [&'static str; 14]  = [
+const LIST: [&'static str; 28]  = [
+    "/folder01",
+    "/folder02",
+    "/folder03",
+    "/folder04",
+    "/folder05",
+    "/music",
+    "/relax",
+    "/misc",
+    "/hd",
+    "/coding",
+    "/foo",
+    "/bar",
     "/folder01",
     "/folder02",
     "/folder03",
@@ -33,6 +45,8 @@ const LIST: [&'static str; 14]  = [
     "/bar",
     "/baz",
     "/enry",
+    "/baz",
+    "/enry"
 ];
 
 
@@ -367,7 +381,9 @@ pub struct App<'a> {
     pub pools: ListState<&'a str>,
     pub tabs: TabState<'a>,
     pub is_quit: bool,
+    pub is_playing: bool,
     pub current_playback: Option<()>, // might need data type.
+    pub playing_track_index: Option<usize>
 }
 
 
@@ -381,8 +397,10 @@ impl<'a> App<'a> {
             playlist: ListState::new(get_tracks_from_path().to_vec()),
             pools: ListState::new(POOL.to_vec()),
             current_playback: None,
+            playing_track_index: None,
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
             is_quit: false,
+            is_playing: false
         };
     }
 
@@ -410,21 +428,26 @@ impl<'a> App<'a> {
         }
     }
 
+    fn get_playing_track_index(&self) -> Option<usize> {
+        if self.is_playing {
+            Some( self.playlist.selected )
+        } else {
+            None
+        } 
+
+    }
 
      pub fn on_press_enter(&mut self) {
 
+        self.is_playing = true;
         let i = self.playlist.selected;
-        self.player.play(self.playlist.items[i].clone());
 
-        //TODO: single active state. 
-      //  match self.tabs.get_current_title(){
-      //      "playlist" => {
-      //          self.playlist.items[i].active = !self.playlist.items[i].active;
-      //      },
-      //      _ => {}
-      //  }
-      //  self.handle_shell();
+        self.player.play(self.playlist.items[i].clone());
+        self.playing_track_index = self.get_playing_track_index();
+
     }
+
+    
 
 
     pub fn on_key(&mut self, c: char){
@@ -483,7 +506,7 @@ fn is_music(entry: &DirEntry) -> bool {
 
 pub fn get_tracks_from_path() -> Vec<Track>{
         let mut lists = Vec::new();
-        for result in Walk::new("/Users/gingliu/Desktop/Ken Kobayashi - sizzle(1987)") {
+        for result in Walk::new("/Users/gingliu/Desktop/test-tsiangt") {
         if let Ok(entry) = result {
             if is_music(&entry) {
                 let track = Track::new(entry.into_path());

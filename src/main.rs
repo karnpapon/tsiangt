@@ -50,7 +50,7 @@ fn main() -> Result<(), failure::Error> {
 
 
     let mut audio = Player::new(device);
-    let mut app = Application::new("terminal-music-player", audio);
+    let mut app = Application::new("/tsiangt/", audio);
 
     loop {
         ui::draw(&mut terminal, &app)?;

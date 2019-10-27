@@ -196,10 +196,12 @@ fn draw_table<B>(
             formatted_row[0] = format!("   {}", &formatted_row[0]);
         }
 
-      // if item.id == 2 {
-      //     style = Style::default().fg(Color::Red);
-      // }
-         //Return row styled data
+        match app.playing_track_index {
+            Some(x) => if i == x { style = Style::default().fg(Color::Red); },
+            None => {}
+        }
+
+       //Return row styled data
         Row::StyledData(formatted_row.into_iter(), style)
     });
 
