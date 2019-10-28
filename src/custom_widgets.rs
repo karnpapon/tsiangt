@@ -3,7 +3,7 @@ use std::iter::Iterator;
 
 use tui::buffer::Buffer;
 use tui::layout::Rect;
-use tui::style::Style;
+use tui::style::{ Style, Color};
 use tui::widgets::{Block, Widget};
 
 /// Holds data to be displayed in a Table widget
@@ -37,6 +37,7 @@ where
     /// not be displayed)
     widths: &'a [u16],
     height: usize,
+    selected: Option<usize>,
     /// Space between each column
     column_spacing: u16,
     /// Data to display in each row
@@ -59,10 +60,12 @@ where
             header_style: Style::default(),
             widths: &[],
             height: 0,
+            selected: None,
             rows: R::default(),
             column_spacing: 1,
         }
     }
+   
 }
 
 impl<'a, T, H, I, D, R> Table<'a, T, H, I, D, R>
@@ -80,6 +83,7 @@ where
             header,
             header_style: Style::default(),
             widths: &[],
+            selected: None,
             height: 0,
             rows,
             column_spacing: 1,
@@ -125,6 +129,12 @@ where
         self.column_spacing = spacing;
         self
     }
+
+     pub fn select(mut self, index: Option<usize>) -> Table<'a, T, H,I,D,R> {
+        self.selected = index;
+        self
+    }
+
 }
 
 impl<'a, T, H, I, D, R> Widget for Table<'a, T, H, I, D, R>
@@ -135,6 +145,8 @@ where
     D: Iterator<Item = I>,
     R: Iterator<Item = Row<D, I>>,
 {
+
+   
     fn draw(&mut self, area: Rect, buf: &mut Buffer) {
         // Render block if necessary and get the drawing area
         let table_area = match self.block {
@@ -145,9 +157,23 @@ where
             None => area,
         };
 
-        self.height = table_area.height as usize;
+        let table_height = table_area.height as usize - 2;
 
-        //println!("table height => {}", table_h);
+        // Use highlight_style only if something is selected
+        let selected = match self.selected {
+            Some(i) => Some(i),
+            None => None,
+        };
+
+        let offset = if let Some(s) = selected {
+            if s >= table_height {
+                s - table_height + 1
+            } else {
+                0
+            }
+        } else {
+            0
+        };
 
         // Set the background
         self.background(table_area, buf, self.style.bg);
@@ -168,7 +194,7 @@ where
         if y < table_area.bottom() {
             x = table_area.left();
             for (w, t) in widths.iter().zip(self.header.by_ref()) {
-                buf.set_string(x, y, format!("{}", t), self.header_style);
+                buf.set_string(x, y, format!("* {}", t), self.header_style);
                 x += *w + self.column_spacing;
             }
         }
@@ -178,16 +204,23 @@ where
         let default_style = Style::default();
         if y < table_area.bottom() {
             let remaining = (table_area.bottom() - y) as usize;
-            for (i, row) in self.rows.by_ref().take(remaining).enumerate() {
+            for (i, row) in self.rows.by_ref().skip(offset as usize).take(remaining).enumerate() {
                 let (data, style) = match row {
                     Row::Data(d) => (d, default_style),
                     Row::StyledData(d, s) => (d, s),
                 };
                 x = table_area.left();
-                for (w, elt) in widths.iter().zip(data) {
-                    buf.set_stringn(x, y + i as u16, format!("{}", elt), *w as usize, style);
+                for (w, elt) in widths.iter().zip(data){
+                    if let Some(sl) =  self.selected {
+                        if sl == i + offset {
+                            buf.set_stringn(x, y + i as u16, format!(" > {}", elt), *w as usize, Style::default().fg(Color::Green));
+                        } else {
+                            buf.set_stringn(x, y + i as u16, format!("   {}", elt), *w as usize, style);
+                        }
+                    };
                     x += *w + self.column_spacing;
                 }
+
             }
         }
     }

@@ -189,21 +189,22 @@ fn draw_table<B>(
         let mut formatted_row = item.format.clone();
         let mut style = Style::default().fg(Color::White); // default styling
 
-        if i == selected_index {
-            formatted_row[0] = format!(" > {}", &formatted_row[0]);
-            style = selected_style;
-        } else {
-            formatted_row[0] = format!("   {}", &formatted_row[0]);
-        }
+      //  if i == selected_index {
+      //      formatted_row[0] = format!(" > {}", &formatted_row[0]);
+      //      style = selected_style;
+      //  } else {
+      //      formatted_row[0] = format!("   {}", &formatted_row[0]);
+      //  }
 
-        match app.playing_track_index {
-            Some(x) => if i == x { style = Style::default().fg(Color::Red);},
-            None => {}
-        }
+      //  match app.playing_track_index {
+      //      Some(x) => if i == x { style = Style::default().fg(Color::Red);},
+      //      None => {}
+      //  }
 
        //Return row styled data
         PlaylistRow::StyledData(formatted_row.into_iter(), style)
-    }).skip( skip_i );
+    });
+    //.skip( skip_i );
 
     
     let (title, header_columns) = table_layout;
@@ -222,6 +223,7 @@ fn draw_table<B>(
         )
         .style(Style::default().fg(Color::White))
         .widths(&widths)
+        .select( app.get_playing_track_index() )
         .render(f, area);
     }
 

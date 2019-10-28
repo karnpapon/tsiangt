@@ -428,12 +428,12 @@ impl<'a> App<'a> {
         }
     }
 
-    fn get_playing_track_index(&self) -> Option<usize> {
-        if self.is_playing {
+    pub fn get_playing_track_index(&self) -> Option<usize> {
+        //if self.is_playing {
             Some( self.playlist.selected )
-        } else {
-            None
-        } 
+        //} else {
+         //   None
+        //} 
 
     }
 
