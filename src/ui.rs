@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 use crate::App::App;
+use crate::custom_widgets::{Table as PlaylistTable, Row as PlaylistRow};
 
 use std::io;
 use termion::raw::IntoRawMode;
@@ -174,15 +175,15 @@ fn draw_table<B>(
     let selected_style = get_color(highlight_state);
         //.modifier(Modifier::BOLD);
    // let mut track_playing_index: bool = false;
-
-
-   // for (item_index , item) in app.playlist.items.iter().enumerate(){
-   //     if item_index == selected_index {
-   //        track_playing_index = true
-   //     } else {
-   //        track_playing_index = false
-   //     }
-   // };
+   //
+   //
+   //
+   // TODO: conditional operation based on PlaylistTable's height not hardcoded.
+   let skip_i: usize = if selected_index > 10 {
+        selected_index - 9
+   }  else {
+        0
+   };
 
     let rows = items.iter().enumerate().map(|(i, item)| {
         let mut formatted_row = item.format.clone();
@@ -201,34 +202,16 @@ fn draw_table<B>(
         }
 
        //Return row styled data
-        Row::StyledData(formatted_row.into_iter(), style)
-    });
+        PlaylistRow::StyledData(formatted_row.into_iter(), style)
+    }).skip( skip_i );
 
+    
     let (title, header_columns) = table_layout;
 
     let widths = header_columns.iter().map(|h| h.width).collect::<Vec<u16>>();
 
-    //SelectableList::default()
-    //    .block(
-    //        Block::default()
-    //            .borders(Borders::ALL)
-    //            .style(Style::default().fg(Color::White))
-    //            .title(title)
-    //            .title_style(get_color(highlight_state))
-    //            .border_style(get_color(highlight_state)),
-    //    )
-    //    .items(&items)
-    //    .select(Some( app.playlist.selected ))
-    //    .style(Style::default().fg(Color::White))
-    //    //.widths(&widths)
-    //    .render(f, area);
 
-
-    let chunks = Layout::default()
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
-        .split(area);
-    
-    Table::new(header_columns.iter().map(|h| h.text), rows)
+    PlaylistTable::new(header_columns.iter().map(|h| h.text), rows)
         .block(
             Block::default()
                 .borders(Borders::ALL)

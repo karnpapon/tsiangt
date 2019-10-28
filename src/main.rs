@@ -2,6 +2,7 @@
 mod App;
 mod events;
 mod ui;
+mod custom_widgets;
 
 use std::io;
 use std::path::PathBuf;
@@ -25,8 +26,8 @@ use crate::events::{ Events, Event };
 use failure::Error;
 
 
-#[macro_use]
-extern crate shells;
+//#[macro_use]
+//extern crate shells;
 
 
 //fn main() -> Result<(), Box<dyn error::Error>> {
