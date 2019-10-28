@@ -74,15 +74,15 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
     let header = [
         TableHeader {
             text: "  Title",
-            width: get_percentage_width(area.width, 0.3),
+            width: get_percentage_width(area.width, 0.33),
         },
         TableHeader {
             text: "Artist",
-            width: get_percentage_width(area.width, 0.3),
+            width: get_percentage_width(area.width, 0.33),
         },
         TableHeader {
             text: "Album",
-            width: get_percentage_width(area.width, 0.25),
+            width: get_percentage_width(area.width, 0.33),
         },
        // TableHeader {
        //     text: "Length",
@@ -174,37 +174,20 @@ fn draw_table<B>(
 {
     let selected_style = get_color(highlight_state);
         //.modifier(Modifier::BOLD);
-   // let mut track_playing_index: bool = false;
-   //
-   //
-   //
-   // TODO: conditional operation based on PlaylistTable's height not hardcoded.
-   let skip_i: usize = if selected_index > 10 {
-        selected_index - 9
-   }  else {
-        0
-   };
+
+   
 
     let rows = items.iter().enumerate().map(|(i, item)| {
         let mut formatted_row = item.format.clone();
         let mut style = Style::default().fg(Color::White); // default styling
-
-      //  if i == selected_index {
-      //      formatted_row[0] = format!(" > {}", &formatted_row[0]);
-      //      style = selected_style;
-      //  } else {
-      //      formatted_row[0] = format!("   {}", &formatted_row[0]);
-      //  }
-
-      //  match app.playing_track_index {
-      //      Some(x) => if i == x { style = Style::default().fg(Color::Red);},
-      //      None => {}
-      //  }
-
-       //Return row styled data
+     
+        // TODO: highlight from widget instead?
+        match app.playing_track_index {
+            Some(x) => if i == x { style = Style::default().fg(Color::Red);},
+            None => {}
+        }
         PlaylistRow::StyledData(formatted_row.into_iter(), style)
     });
-    //.skip( skip_i );
 
     
     let (title, header_columns) = table_layout;

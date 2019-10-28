@@ -194,7 +194,7 @@ where
         if y < table_area.bottom() {
             x = table_area.left();
             for (w, t) in widths.iter().zip(self.header.by_ref()) {
-                buf.set_string(x, y, format!("* {}", t), self.header_style);
+                buf.set_string(x, y, format!("{}", t), self.header_style);
                 x += *w + self.column_spacing;
             }
         }
