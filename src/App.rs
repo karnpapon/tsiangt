@@ -1,10 +1,11 @@
 use std::process::Command;
-use std::fs;
+use std::fs::{DirEntry as StdDirEntry};
 use std::fs::File;
 use std::io::BufReader;
 use std::cmp::Ordering;
-use std::path::PathBuf;
+use std::path::{ Path };
 use std::fmt::{self, Formatter, Display};
+use std::{ fs, io, path::PathBuf, ffi::OsStr };
 
 use ignore::{ Walk, DirEntry };
 use rodio::{Device, Sink};
@@ -16,6 +17,7 @@ use std::error;
 //fn run(dir: &str) -> Result<impl Iterator<Item=String>, Box<dyn error::Error>> { r#"
 //    timidity $DIR
 //"# }
+//
 
 
 const LIST: [&'static str; 28]  = [
@@ -238,7 +240,7 @@ impl<'a> TabState<'a>{
         self.titles[self.index % self.titles.len()]
     }
 
-    pub fn get_tab_index(&mut self,tab: usize) {
+    pub fn set_tab_index(&mut self,tab: usize) {
         self.index = tab - 1; 
     }
 } 
@@ -375,7 +377,7 @@ impl Player {
 pub struct App<'a> {
     pub player: Player,
     pub title: &'a str,
-    pub directory: ListState<&'a str>,
+    pub directory: ListState<String>,
     //pub playlist: ListState<SongData <'a> >,
     pub playlist: ListState<Track>,
     pub pools: ListState<&'a str>,
@@ -386,14 +388,13 @@ pub struct App<'a> {
     pub playing_track_index: Option<usize>
 }
 
-
 impl<'a> App<'a> {
     pub fn new(title: &'a str, player: Player) -> App<'a> {
         return 
         App{
             title,
             player,
-            directory: ListState::new(LIST.to_vec()),
+            directory: ListState::new(vec!["/path00".to_string()]),
             playlist: ListState::new(get_tracks_from_path().to_vec()),
             pools: ListState::new(POOL.to_vec()),
             current_playback: None,
@@ -450,18 +451,49 @@ impl<'a> App<'a> {
 
     pub fn on_key(&mut self, c: char){
         match c {
-            '\n' => {self.on_press_enter();},
+            '\n' => match self.tabs.get_current_title() {
+                "playlist" => self.on_press_enter(),
+                _ => {  }
+            },
             ' ' => { self.player.pause()},
             'q' => { self.is_quit = true;},
             'j' => { self.on_key_down()},
             'k' => { self.on_key_up()},
             'h' => { self.tabs.panels.prev_panel()},
             'l' => { self.tabs.panels.next_panel()},
-            '1' => { self.tabs.get_tab_index(1)},
-            '2' => { self.tabs.get_tab_index(2)},
-            '3' => { self.tabs.get_tab_index(3)},
+            '1' => { self.handle_tab(1)},
+            '2' => { self.handle_tab(2)},
+            '3' => { self.handle_tab(3)},
             _ => {}
         }
+    }
+
+    pub fn handle_tab(&mut self, i: usize){
+        
+        let p = Path::new("/Users/gingliu/Desktop/test-directory");
+        let d = get_list_of_paths(p.to_str().unwrap());
+        self.set_directory(d.unwrap());
+        self.tabs.set_tab_index(i);
+    }
+
+    pub fn set_directory(&mut self, lists: Vec<PathBuf>){
+        let mut path_str = vec![];
+
+        for p in lists {
+            if is_not_hidden(&p) {
+                path_str.push(format!("/{}",  
+                    p.file_name()
+                    .unwrap()
+                    .to_owned()
+                    .to_os_string()
+                    .into_string()
+                    .unwrap()
+                    )
+                );
+            }
+            
+        }
+        self.directory =  ListState::new(path_str);
     }
 
    //  pub fn handle_shell(&self) ->  Result<(), Box<dyn error::Error>> {
@@ -481,6 +513,14 @@ impl<'a> App<'a> {
 
 }
 
+fn is_not_hidden(entry: &PathBuf) -> bool {
+    entry
+         .file_name()
+         .unwrap()
+         .to_str()
+         .map(|s| !s.starts_with("."))
+         .unwrap_or(false)
+}
 
 
 fn is_music(entry: &DirEntry) -> bool {
@@ -501,6 +541,16 @@ fn is_music(entry: &DirEntry) -> bool {
     }
 }
 
+
+fn get_list_of_paths(root: &str) -> io::Result<Vec<PathBuf>> {
+    let mut result = vec![];
+
+    for path in fs::read_dir(root)? {
+        let path = path?.path();
+            result.push(path.to_owned());
+    }
+    Ok(result)
+}
 
 pub fn get_tracks_from_path() -> Vec<Track>{
         let mut lists = Vec::new();
