@@ -73,7 +73,7 @@ const TABS: [&'static str; 3] = [
 ];
 
 
-const POOL: [&'static str; 14] =[
+const FILES: [&'static str; 14] =[
     "selected song1",
     "selected song2",
     "selected song3",
@@ -156,6 +156,26 @@ const MOCKDATA: [SongData; 5] = [
             id: 5
         }
     ];
+
+
+
+pub struct DirectoryList{
+    pub path: PathBuf,
+    pub name: String,
+    pub index: usize
+}
+
+
+impl DirectoryList {
+
+pub fn new(&mut self, p: PathBuf) -> DirectoryList{
+    DirectoryList{
+        path: p,
+        name: String::from("/directory00"),
+        index: 0
+    }
+}
+}
 
 #[derive(Debug, Clone)]
 pub struct ListState<I> {
@@ -377,10 +397,9 @@ impl Player {
 pub struct App<'a> {
     pub player: Player,
     pub title: &'a str,
-    pub directory: ListState<String>,
-    //pub playlist: ListState<SongData <'a> >,
+    pub directory: ListState<PathBuf>,
+    pub directory_files: ListState<Track>,
     pub playlist: ListState<Track>,
-    pub pools: ListState<&'a str>,
     pub tabs: TabState<'a>,
     pub is_quit: bool,
     pub is_playing: bool,
@@ -394,9 +413,13 @@ impl<'a> App<'a> {
         App{
             title,
             player,
-            directory: ListState::new(vec!["/path00".to_string()]),
-            playlist: ListState::new(get_tracks_from_path().to_vec()),
-            pools: ListState::new(POOL.to_vec()),
+            directory: init_directory(),
+            playlist: ListState::new(
+                get_tracks_from_path(&PathBuf::from("/Users/gingliu/Desktop/test-tsiangt")).to_vec()
+                ),
+            directory_files: ListState::new(
+                get_tracks_from_path(&PathBuf::from("/Users/gingliu/Desktop/test-directory")).to_vec()
+                ),
             current_playback: None,
             playing_track_index: None,
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
@@ -408,11 +431,7 @@ impl<'a> App<'a> {
     pub fn on_key_up(&mut self){
         match self.tabs.get_current_title() {
            "playlist" => {self.playlist.select_next()},
-           "library" => match self.tabs.panels.index { 
-               0 => self.directory.select_next(),
-               1 => self.pools.select_next(),
-               _ => {}
-           } ,
+           "library" => { self.handle_panel_select_next()},
            _ => {}
         }
     }
@@ -420,39 +439,62 @@ impl<'a> App<'a> {
     pub fn on_key_down(&mut self) {
          match self.tabs.get_current_title() {
            "playlist" => {self.playlist.select_prev()},
-           "library" => match self.tabs.panels.index { 
-               0 => self.directory.select_prev(),
-               1 => self.pools.select_prev(),
-               _ => {}
-           },
+           "library" => {self.handle_panel_select_prev()},
            _ => {}
         }
     }
 
-    pub fn get_playing_track_index(&self) -> Option<usize> {
-        //if self.is_playing {
-            Some( self.playlist.selected )
-        //} else {
-         //   None
-        //} 
-
+    pub fn handle_panel_select_prev(&mut self){
+        //self.get_directory_files();
+        match self.tabs.panels.index {
+            0 => self.directory.select_prev(),
+            1 => self.directory_files.select_prev(),
+            _ => {}
+        }
     }
 
-     pub fn on_press_enter(&mut self) {
+
+    pub fn handle_panel_select_next(&mut self){
+        //self.get_directory_files();
+        match self.tabs.panels.index {
+            0 => self.directory.select_next(),
+            1 => self.directory_files.select_next(),
+            _ => {}
+        }
+    }
+
+    pub fn get_playing_track_index(&self) -> Option<usize> {
+        //if tab == playlist.
+        //
+        match self.tabs.index{
+            0 => { Some( self.playlist.selected )},
+            1 => { Some( self.directory_files.selected)},
+            _ => None
+        }
+    }
+
+     pub fn on_select_playing(&mut self) {
 
         self.is_playing = true;
         let i = self.playlist.selected;
 
         self.player.play(self.playlist.items[i].clone());
         self.playing_track_index = self.get_playing_track_index();
-
     }
+
+     pub fn on_select_directory(&mut self){
+        self.handle_get_directory();
+     }
 
 
     pub fn on_key(&mut self, c: char){
-        match c {
+        if c.is_digit(10) { 
+            self.handle_tab(c.to_digit(10).unwrap() as usize) 
+        } else { 
+            match c {
             '\n' => match self.tabs.get_current_title() {
-                "playlist" => self.on_press_enter(),
+                "playlist" => self.on_select_playing(),
+                "library" =>  self.on_select_directory(),
                 _ => {  }
             },
             ' ' => { self.player.pause()},
@@ -461,19 +503,21 @@ impl<'a> App<'a> {
             'k' => { self.on_key_up()},
             'h' => { self.tabs.panels.prev_panel()},
             'l' => { self.tabs.panels.next_panel()},
-            '1' => { self.handle_tab(1)},
-            '2' => { self.handle_tab(2)},
-            '3' => { self.handle_tab(3)},
             _ => {}
         }
+        }
+        
     }
 
+
     pub fn handle_tab(&mut self, i: usize){
-        
-        let p = Path::new("/Users/gingliu/Desktop/test-directory");
-        let d = get_list_of_paths(p.to_str().unwrap());
-        self.set_directory(d.unwrap());
+        //if i == 2 { self.handle_get_directory();}
         self.tabs.set_tab_index(i);
+    }
+
+    pub fn handle_get_directory(&mut self){
+            let d = get_list_of_paths(&self.directory.items[self.directory.selected]);
+            self.set_directory(d.unwrap());
     }
 
     pub fn set_directory(&mut self, lists: Vec<PathBuf>){
@@ -481,19 +525,27 @@ impl<'a> App<'a> {
 
         for p in lists {
             if is_not_hidden(&p) {
-                path_str.push(format!("/{}",  
-                    p.file_name()
-                    .unwrap()
-                    .to_owned()
-                    .to_os_string()
-                    .into_string()
-                    .unwrap()
-                    )
-                );
+               // path_str.push(format!("/{}",  
+               //     p
+               //     .file_name()
+               //     .unwrap()
+               //     .to_owned()
+               //     .to_os_string()
+               //     .into_string()
+               //     .unwrap()
+               //     )
+               // );
+               path_str.push(p);
             }
             
         }
         self.directory =  ListState::new(path_str);
+    }
+
+    pub fn get_directory_files(&mut self){
+        let p = self.directory.items[self.directory.selected].clone();
+        let d = get_tracks_from_path(&p);
+        //self.directory_files = ListState::new(d);
     }
 
    //  pub fn handle_shell(&self) ->  Result<(), Box<dyn error::Error>> {
@@ -501,7 +553,7 @@ impl<'a> App<'a> {
    //     Ok( () )
    //  }
    //
-   pub fn handle_shell(&self){
+   //pub fn handle_shell(&self){
        // let your_command = "timidity /Users/gingliu/Desktop/test.mid";
        // let output = Command::new("bash")
        // .arg("-c").arg(your_command)
@@ -509,7 +561,7 @@ impl<'a> App<'a> {
        // .stdout;
        // println!("{}", String::from_utf8(output).expect("Output is not utf-8"));
         //sh!("timidity /Users/gingliu/Desktop/test.mid");
-   }
+   //}
 
 }
 
@@ -542,7 +594,22 @@ fn is_music(entry: &DirEntry) -> bool {
 }
 
 
-fn get_list_of_paths(root: &str) -> io::Result<Vec<PathBuf>> {
+fn init_directory() -> ListState<PathBuf>{
+        let init = PathBuf::from("/Users/gingliu/Desktop");
+        let lists = get_list_of_paths(&init);
+        let mut path_str = vec![];
+
+        for p in lists.unwrap() {
+            if is_not_hidden(&p) {
+               path_str.push(p);
+            }
+            
+        }
+        ListState::new(path_str)
+}
+
+
+fn get_list_of_paths(root: &PathBuf) -> io::Result<Vec<PathBuf>> {
     let mut result = vec![];
 
     for path in fs::read_dir(root)? {
@@ -552,9 +619,11 @@ fn get_list_of_paths(root: &str) -> io::Result<Vec<PathBuf>> {
     Ok(result)
 }
 
-pub fn get_tracks_from_path() -> Vec<Track>{
+
+
+fn get_tracks_from_path(path: &PathBuf) -> Vec<Track>{
         let mut lists = Vec::new();
-        for result in Walk::new("/Users/gingliu/Desktop/test-tsiangt") {
+        for result in Walk::new(path) {
         if let Ok(entry) = result {
             if is_music(&entry) {
                 let track = Track::new(entry.into_path());

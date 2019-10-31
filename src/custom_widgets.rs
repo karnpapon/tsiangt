@@ -214,9 +214,12 @@ where
                     if let Some(sl) =  self.selected {
                         if sl == i + offset {
                             buf.set_stringn(x, y + i as u16, format!(" > {}", elt), *w as usize, Style::default().fg(Color::Green));
-                        } else {
+                        } 
+                        else {
                             buf.set_stringn(x, y + i as u16, format!("   {}", elt), *w as usize, style);
                         }
+                    } else {
+                        buf.set_stringn(x, y + i as u16, format!("   {}", elt), *w as usize, style);
                     };
                     x += *w + self.column_spacing;
                 }

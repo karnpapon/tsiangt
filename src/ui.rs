@@ -40,6 +40,7 @@ pub fn draw<B>(terminal: &mut Terminal<B>, app: &App)  -> Result<(), io::Error>
         match app.tabs.index {
             0 => draw_first_tab(&mut f, &app, chunks[1]),
             1 => draw_second_tab(&mut f, &app, chunks[1]),
+            2 => draw_third_tab(&mut f, &app, chunks[1]),
             _ => {}
         };
     })
@@ -97,7 +98,7 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
         chunks[0],
         ("Playlist", &header),
         &items,
-        app.playlist.selected,
+        || app.get_playing_track_index(),
         highlight_state,
     );
 }
@@ -110,31 +111,75 @@ fn draw_second_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
         .direction(Direction::Horizontal)
         .split(area);
   
-    draw_pools(f, app, chunks[1]);
-    draw_lists(f, app, chunks[0]);
+    draw_directory(f, app, chunks[0]);
+    draw_directory_files(f, app, chunks[1]);
 }
 
-fn draw_pools<B>(f: &mut Frame<B>, app: &App, area: Rect)
-    where B: Backend 
+fn draw_third_tab<B>(f: &mut Frame<B>, app: &App, area: Rect) 
+    where B: Backend
 {
-    SelectableList::default()
-        .block(
-            Block::default()
-            .borders(Borders::ALL)
-            .border_style(draw_active(app, "Files"))
-            .title(app.tabs.panels.titles[app.tabs.index % app.tabs.titles.len()])
-        )
-        .items(&app.pools.items)
-        .select(Some(app.pools.selected))
-        .highlight_style(Style::default().fg(Color::Green))
-        .highlight_symbol(">")
-        .render(f, area);
+
+    let chunks = Layout::default()
+        .constraints([Constraint::Percentage(100)] .as_ref())
+        .split(area);
+
+     let mut items = Vec::new();
+
+    items.push(TableItem {
+        id: String::from( "placeholder" ),
+        format: vec!["No Results found..".to_string()]
+    });
+
+    let highlight_state = true;
+
+
+    let header = [
+        TableHeader {
+            text: "  Title",
+            width: get_percentage_width(area.width, 0.33),
+        },
+        TableHeader {
+            text: "Artist",
+            width: get_percentage_width(area.width, 0.33),
+        },
+        TableHeader {
+            text: "Album",
+            width: get_percentage_width(area.width, 0.33),
+        },
+    ];
+
+
+    draw_table(
+        f,
+        app,
+        chunks[0],
+        ( &app.tabs.panels.titles[1] , &header),
+        &items,
+        || app.get_playing_track_index(),
+        highlight_state,
+    );
 }
 
 
-fn draw_lists<B>(f: &mut Frame<B>, app: &App, area: Rect)
+
+fn draw_directory<B>(f: &mut Frame<B>, app: &App, area: Rect)
     where B: Backend 
 {
+    let current_title = &app.tabs.panels.titles[0];
+    let active = get_color(*&app.tabs.panels.index == 0);
+
+    let mut d = Vec::new();
+
+    for directory in &app.directory.items {
+        d.push(directory
+            .file_name()
+            .unwrap()
+            .to_owned()
+            .to_os_string()
+            .into_string()
+            .unwrap()
+            );
+    }
        
    Layout::default()
         .constraints([Constraint::Percentage(100)].as_ref());
@@ -142,14 +187,61 @@ fn draw_lists<B>(f: &mut Frame<B>, app: &App, area: Rect)
             .block(
                 Block::default()
                 .borders(Borders::ALL)
-                .border_style( draw_active(app, "Directory"))
+                .border_style( draw_active(app, current_title))
+                .title_style(active)
                 .title(app.tabs.panels.titles[app.tabs.index % app.tabs.titles.len() - 1])
             )
-            .items(&app.directory.items )
+            .items(&d)
             .select(Some(app.directory.selected))
             .highlight_style(Style::default().fg(Color::Green))
             .highlight_symbol(">")
             .render(f, area);
+}
+
+
+fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
+    where B: Backend 
+{
+
+   let items = app
+       .directory_files
+       .items
+       .iter()
+       .map(|item| TableItem {
+           id: item.title.to_string(),
+           format: vec![
+               item.title.to_string().to_owned(),
+               item.artist.to_string().to_owned(),
+               item.album.to_string().to_owned(),
+           ],
+       })
+       .collect::<Vec<TableItem>>();
+
+    let header = [
+        TableHeader {
+            text: "  Title",
+            width: get_percentage_width(area.width, 0.33),
+        },
+        TableHeader {
+            text: "Artist",
+            width: get_percentage_width(area.width, 0.33),
+        },
+        TableHeader {
+            text: "Album",
+            width: get_percentage_width(area.width, 0.33),
+        },
+];
+
+
+    draw_table(
+        f,
+        app,
+        area,
+        (&app.tabs.panels.titles[1], &header),
+        &items,
+        || app.get_playing_track_index(),
+        *&app.tabs.panels.index == 1,
+    );
 }
 
 
@@ -161,16 +253,17 @@ fn get_percentage_width(width: u16, percentage: f32) -> u16 {
 }
 
 
-fn draw_table<B>(
+fn draw_table<B,F>(
     f: &mut Frame<B>,
     app: &App,
     area: Rect,
     table_layout: (&str, &[TableHeader]), // (title, header colums)
     items: &[TableItem], // The nested vector must have the same length as the `header_columns`
-    selected_index: usize,
+    select_fn: F,
     highlight_state: bool,
 ) where
     B: Backend,
+    F: Fn() -> Option<usize>
 {
     let selected_style = get_color(highlight_state);
         //.modifier(Modifier::BOLD);
@@ -206,7 +299,7 @@ fn draw_table<B>(
         )
         .style(Style::default().fg(Color::White))
         .widths(&widths)
-        .select( app.get_playing_track_index() )
+        .select( select_fn() )
         .render(f, area);
     }
 
@@ -214,7 +307,7 @@ fn draw_table<B>(
 fn get_color(is_active : bool) -> Style {
     match is_active {
         true => Style::default().fg(Color::Green),
-        _ => Style::default().fg(Color::Gray),
+        _ => Style::default().fg(Color::White),
     }
 }
 
