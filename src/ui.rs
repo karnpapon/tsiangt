@@ -171,14 +171,15 @@ fn draw_directory<B>(f: &mut Frame<B>, app: &App, area: Rect)
     let mut d = Vec::new();
 
     for directory in &app.directory.items {
-        d.push(directory
+        d.push(format!("/{}", directory
             .file_name()
             .unwrap()
             .to_owned()
             .to_os_string()
             .into_string()
             .unwrap()
-            );
+            )
+        )
     }
        
    Layout::default()

@@ -413,13 +413,9 @@ impl<'a> App<'a> {
         App{
             title,
             player,
-            directory: init_directory(),
-            playlist: ListState::new(
-                get_tracks_from_path(&PathBuf::from("/Users/gingliu/Desktop/test-tsiangt")).to_vec()
-                ),
-            directory_files: ListState::new(
-                get_tracks_from_path(&PathBuf::from("/Users/gingliu/Desktop/test-directory")).to_vec()
-                ),
+            directory: init_directory("/Users/gingliu/Desktop".to_string()),
+            playlist: init_tracks("/Users/gingliu/Desktop/test-tsiangt".to_string()),
+            directory_files: init_tracks("/Users/gingliu/Desktop/test-directory".to_string()), 
             current_playback: None,
             playing_track_index: None,
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
@@ -445,7 +441,6 @@ impl<'a> App<'a> {
     }
 
     pub fn handle_panel_select_prev(&mut self){
-        //self.get_directory_files();
         match self.tabs.panels.index {
             0 => self.directory.select_prev(),
             1 => self.directory_files.select_prev(),
@@ -455,7 +450,6 @@ impl<'a> App<'a> {
 
 
     pub fn handle_panel_select_next(&mut self){
-        //self.get_directory_files();
         match self.tabs.panels.index {
             0 => self.directory.select_next(),
             1 => self.directory_files.select_next(),
@@ -464,8 +458,6 @@ impl<'a> App<'a> {
     }
 
     pub fn get_playing_track_index(&self) -> Option<usize> {
-        //if tab == playlist.
-        //
         match self.tabs.index{
             0 => { Some( self.playlist.selected )},
             1 => { Some( self.directory_files.selected)},
@@ -497,6 +489,10 @@ impl<'a> App<'a> {
                 "library" =>  self.on_select_directory(),
                 _ => {  }
             },
+            'b' => match self.tabs.panels.get_title() { 
+              "Directory" => self.redirect_parent_path(),
+              _ => {}
+            },
             ' ' => { self.player.pause()},
             'q' => { self.is_quit = true;},
             'j' => { self.on_key_down()},
@@ -509,15 +505,27 @@ impl<'a> App<'a> {
         
     }
 
+    fn redirect_parent_path(&mut self){
+        let d = PathBuf::from(&self.directory.items[self.directory.selected].parent().unwrap());
+        let d = PathBuf::from(d.parent().unwrap());
+
+        // stop at root folder.
+        if d != PathBuf::from("/"){
+            let p = get_list_of_paths(&d);
+            self.set_directory(p.unwrap());
+        }
+    }
+
 
     pub fn handle_tab(&mut self, i: usize){
-        //if i == 2 { self.handle_get_directory();}
         self.tabs.set_tab_index(i);
     }
 
     pub fn handle_get_directory(&mut self){
-            let d = get_list_of_paths(&self.directory.items[self.directory.selected]);
-            self.set_directory(d.unwrap());
+        //TODO: handle empty_folder, display text instead?
+            if let Some(res) = get_list_of_paths(&self.directory.items[self.directory.selected]){
+                self.set_directory(res);
+            }
     }
 
     pub fn set_directory(&mut self, lists: Vec<PathBuf>){
@@ -525,16 +533,6 @@ impl<'a> App<'a> {
 
         for p in lists {
             if is_not_hidden(&p) {
-               // path_str.push(format!("/{}",  
-               //     p
-               //     .file_name()
-               //     .unwrap()
-               //     .to_owned()
-               //     .to_os_string()
-               //     .into_string()
-               //     .unwrap()
-               //     )
-               // );
                path_str.push(p);
             }
             
@@ -593,9 +591,12 @@ fn is_music(entry: &DirEntry) -> bool {
     }
 }
 
+fn init_tracks(path: String) -> ListState<Track>{
+    ListState::new(get_tracks_from_path(&PathBuf::from(path)).to_vec())
+}
 
-fn init_directory() -> ListState<PathBuf>{
-        let init = PathBuf::from("/Users/gingliu/Desktop");
+fn init_directory(path: String) -> ListState<PathBuf>{
+        let init = PathBuf::from(path);
         let lists = get_list_of_paths(&init);
         let mut path_str = vec![];
 
@@ -609,14 +610,20 @@ fn init_directory() -> ListState<PathBuf>{
 }
 
 
-fn get_list_of_paths(root: &PathBuf) -> io::Result<Vec<PathBuf>> {
+fn get_list_of_paths(root: &PathBuf) -> Option<Vec<PathBuf>> {
     let mut result = vec![];
+    let is_empty_folder = fs::read_dir(root).map(|mut i| i.next().is_none()).unwrap_or(false);
 
-    for path in fs::read_dir(root)? {
-        let path = path?.path();
+    if  !is_empty_folder {
+        for path in fs::read_dir(root).unwrap(){
+            let path = path.unwrap().path();
             result.push(path.to_owned());
+        }
+        Some(result)
+    } else {
+        None
     }
-    Ok(result)
+    
 }
 
 
