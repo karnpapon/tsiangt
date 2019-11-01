@@ -404,7 +404,8 @@ pub struct App<'a> {
     pub is_quit: bool,
     pub is_playing: bool,
     pub current_playback: Option<()>, // might need data type.
-    pub playing_track_index: Option<usize>
+    pub playing_track_index: Option<usize>,
+    pub is_playlist_added: bool
 }
 
 impl<'a> App<'a> {
@@ -413,14 +414,15 @@ impl<'a> App<'a> {
         App{
             title,
             player,
-            directory: init_directory( &dirs::home_dir().unwrap()),
-            playlist: init_tracks( &dirs::audio_dir().unwrap()),
+            playlist: ListState::new(Vec::new()),
+            directory: init_directory( &dirs::audio_dir().unwrap()),
             directory_files: init_tracks(&dirs::audio_dir().unwrap()),
             current_playback: None,
             playing_track_index: None,
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
             is_quit: false,
-            is_playing: false
+            is_playing: false,
+            is_playlist_added: false
         };
     }
 
@@ -474,13 +476,10 @@ impl<'a> App<'a> {
         self.playing_track_index = self.get_playing_track_index();
     }
 
-     // TODO: DRY!
      pub fn on_select_directory_files_playing(&mut self){
-        self.is_playing = true;
+        self.is_playlist_added = true;
         let i = self.directory_files.selected;
-
-        self.player.play(self.directory_files.items[i].clone());
-        self.playing_track_index = self.get_playing_track_index();
+        self.playlist.items.push(self.directory_files.items[i].clone());
      }
 
      pub fn on_select_directory(&mut self){
@@ -517,25 +516,28 @@ impl<'a> App<'a> {
             },
             ' ' => { self.player.pause()},
             'q' => { self.is_quit = true;},
-            'j' => { self.on_key_down()},
-            'k' => { self.on_key_up()},
+            'j' => { self.is_playlist_added = false; self.on_key_down()},
+            'k' => { self.is_playlist_added = false; self.on_key_up()},
             'h' => { self.tabs.panels.prev_panel()},
             'l' => { self.tabs.panels.next_panel()},
             _ => {}
         }
         }
-        
+
     }
 
     fn redirect_parent_path(&mut self){
-        let d = PathBuf::from(&self.directory.items[self.directory.selected].parent().unwrap());
-        let d = PathBuf::from(d.parent().unwrap());
 
-        // stop at home root folder.
-        if d !=  dirs::home_dir().unwrap(){
-            let p = get_list_of_paths(&d);
-            self.set_directory(p.unwrap());
-        }
+        if let Some(d) = &self.directory.items[self.directory.selected].parent(){
+            let d = PathBuf::from(d.parent().unwrap());
+
+           // stop at home root folder.
+           if d !=  dirs::home_dir().unwrap(){
+               let p = get_list_of_paths(&d);
+               self.set_directory(p.unwrap());
+           }
+        } 
+        
     }
 
 
@@ -545,7 +547,9 @@ impl<'a> App<'a> {
 
     pub fn handle_get_directory(&mut self){
         //TODO: handle empty_folder, display text instead?
-            if let Some(res) = get_list_of_paths(&self.directory.items[self.directory.selected]){
+            let item = &self.directory.items;
+            let i = self.directory.selected;
+            if let Some(res) = get_list_of_paths(&item[i]){
                 self.set_directory(res);
             }
     }
@@ -605,6 +609,30 @@ fn is_not_hidden(entry: &PathBuf) -> bool {
          .unwrap_or(false)
 }
 
+fn is_music_in_folder(path: &PathBuf) -> bool {
+//    let metadata = fs::metadata(entry.path()).unwrap();
+//    if metadata.is_dir() {
+//        return false;
+//    }
+//
+    let mut has_audio_file: bool = false;
+
+    for entry in path.read_dir().expect("cannot read dir"){
+        if let Ok(entry) = entry {
+             if let Some(extension) = entry.path().extension() {
+                 match extension.to_str() {
+                     Some("mp3") =>  has_audio_file = true,
+                     Some("flac") => has_audio_file = true,
+                     Some("ogg") => has_audio_file = true,
+                     _ => return false,
+                 };
+             } 
+         }
+    }
+
+    has_audio_file
+
+    }
 
 fn is_music(entry: &DirEntry) -> bool {
     let metadata = fs::metadata(entry.path()).unwrap();
@@ -644,7 +672,10 @@ fn init_directory(path: &PathBuf) -> ListState<PathBuf>{
 
 fn get_list_of_paths(root: &PathBuf) -> Option<Vec<PathBuf>> {
     let mut result = vec![];
+
+    // validation.
     let is_empty_folder = fs::read_dir(root).map(|mut i| i.next().is_none()).unwrap_or(false);
+    //let is_contains_no_folder = is_no_folder_inside(root);
 
     if  !is_empty_folder {
         for path in fs::read_dir(root).unwrap(){
@@ -656,6 +687,27 @@ fn get_list_of_paths(root: &PathBuf) -> Option<Vec<PathBuf>> {
         None
     }
     
+}
+
+
+fn is_no_folder_inside(d: &PathBuf) -> bool {
+    let mut is_no_folder: bool = false;
+    if let Ok(entries) = fs::read_dir(d) {
+    for entry in entries {
+        if let Ok(entry) = entry {
+            if let Ok(file_type) = entry.file_type() {
+                if file_type.is_dir(){
+                    is_no_folder = false;
+                } else {
+                    is_no_folder = true;
+                }
+            } else {
+                return false;
+            }
+        }
+    }
+}
+    is_no_folder
 }
 
 

@@ -42,6 +42,7 @@ where
     column_spacing: u16,
     /// Data to display in each row
     rows: R,
+    select_symbol: String
 }
 
 impl<'a, T, H, I, D, R> Default for Table<'a, T, H, I, D, R>
@@ -63,6 +64,7 @@ where
             selected: None,
             rows: R::default(),
             column_spacing: 1,
+            select_symbol: String::new(),
         }
     }
    
@@ -87,6 +89,7 @@ where
             height: 0,
             rows,
             column_spacing: 1,
+            select_symbol: String::from(">")
         }
     }
     pub fn block(mut self, block: Block<'a>) -> Table<'a, T, H, I, D, R> {
@@ -134,6 +137,11 @@ where
         self.selected = index;
         self
     }
+
+     pub fn select_symbol(mut self, symbol: String) -> Table<'a, T,H,I,D,R>{
+        self.select_symbol = symbol;
+        self
+     }
 
 }
 
@@ -217,9 +225,9 @@ where
                                 x, y + i as u16, 
                                 // TODO: render indicator ">" only for first index.
                                 if i == 0 {
-                                    format!(" > {}", elt) 
+                                    format!(" {} {}", self.select_symbol, elt) 
                                 } else {
-                                    format!("   {}", elt)
+                                    format!(" {} {}", self.select_symbol, elt)
                                 },
                                 *w as usize, 
                                 Style::default().fg(Color::Green)

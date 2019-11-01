@@ -295,6 +295,11 @@ fn draw_table<B,F>(
 
     let widths = header_columns.iter().map(|h| h.width).collect::<Vec<u16>>();
 
+    let symbol = if app.is_playlist_added {
+        "+".to_string()
+    } else {
+        ">".to_string()
+    };
 
     PlaylistTable::new(header_columns.iter().map(|h| h.text), rows)
         .block(
@@ -308,6 +313,7 @@ fn draw_table<B,F>(
         .style(Style::default().fg(Color::White))
         .widths(&widths)
         .select( select_fn() )
+        .select_symbol(symbol)
         .render(f, area);
     }
 
