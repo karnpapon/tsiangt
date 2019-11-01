@@ -100,6 +100,7 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
         &items,
         || app.get_playing_track_index(),
         highlight_state,
+        true
     );
 }
 
@@ -157,6 +158,7 @@ fn draw_third_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
         &items,
         || app.get_playing_track_index(),
         highlight_state,
+        false
     );
 }
 
@@ -242,6 +244,7 @@ fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
         &items,
         || app.get_playing_track_index(),
         *&app.tabs.panels.index == 1,
+        true
     );
 }
 
@@ -262,6 +265,7 @@ fn draw_table<B,F>(
     items: &[TableItem], // The nested vector must have the same length as the `header_columns`
     select_fn: F,
     highlight_state: bool,
+    should_active: bool
 ) where
     B: Backend,
     F: Fn() -> Option<usize>
@@ -276,10 +280,13 @@ fn draw_table<B,F>(
         let mut style = Style::default().fg(Color::White); // default styling
      
         // TODO: highlight from widget instead?
-        match app.playing_track_index {
-            Some(x) => if i == x { style = Style::default().fg(Color::Red);},
-            None => {}
+        if should_active {
+            match app.playing_track_index {
+                Some(x) => if i == x { style = Style::default().fg(Color::Red);},
+                None => {}
+            }
         }
+        
         PlaylistRow::StyledData(formatted_row.into_iter(), style)
     });
 

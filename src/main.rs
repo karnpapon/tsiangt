@@ -8,6 +8,7 @@ use std::io;
 use std::path::PathBuf;
 use std::fs;
 
+extern crate dirs;
 
 use termion::raw::IntoRawMode;
 use termion::event::Key;

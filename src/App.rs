@@ -413,9 +413,9 @@ impl<'a> App<'a> {
         App{
             title,
             player,
-            directory: init_directory("/Users/gingliu/Desktop".to_string()),
-            playlist: init_tracks("/Users/gingliu/Desktop/test-tsiangt".to_string()),
-            directory_files: init_tracks("/Users/gingliu/Desktop/test-directory".to_string()), 
+            directory: init_directory( &dirs::home_dir().unwrap()),
+            playlist: init_tracks( &dirs::audio_dir().unwrap()),
+            directory_files: init_tracks(&dirs::audio_dir().unwrap()),
             current_playback: None,
             playing_track_index: None,
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
@@ -474,8 +474,21 @@ impl<'a> App<'a> {
         self.playing_track_index = self.get_playing_track_index();
     }
 
+     // TODO: DRY!
+     pub fn on_select_directory_files_playing(&mut self){
+        self.is_playing = true;
+        let i = self.directory_files.selected;
+
+        self.player.play(self.directory_files.items[i].clone());
+        self.playing_track_index = self.get_playing_track_index();
+     }
+
      pub fn on_select_directory(&mut self){
         self.handle_get_directory();
+     }
+
+     pub fn on_select_directory_files(&mut self){
+        self.handle_get_directory_files(); 
      }
 
 
@@ -486,7 +499,16 @@ impl<'a> App<'a> {
             match c {
             '\n' => match self.tabs.get_current_title() {
                 "playlist" => self.on_select_playing(),
-                "library" =>  self.on_select_directory(),
+                "library" => {
+                    match self.tabs.panels.get_title(){
+                        "Directory" => {
+                            self.on_select_directory();
+                            self.on_select_directory_files();
+                        },
+                        "Files" => { self.on_select_directory_files_playing()},
+                        _ => {}
+                    }
+                },
                 _ => {  }
             },
             'b' => match self.tabs.panels.get_title() { 
@@ -509,8 +531,8 @@ impl<'a> App<'a> {
         let d = PathBuf::from(&self.directory.items[self.directory.selected].parent().unwrap());
         let d = PathBuf::from(d.parent().unwrap());
 
-        // stop at root folder.
-        if d != PathBuf::from("/"){
+        // stop at home root folder.
+        if d !=  dirs::home_dir().unwrap(){
             let p = get_list_of_paths(&d);
             self.set_directory(p.unwrap());
         }
@@ -528,6 +550,13 @@ impl<'a> App<'a> {
             }
     }
 
+    pub fn handle_get_directory_files(&mut self){
+        let files = get_tracks_from_path( &self.directory.items[self.directory.selected]);
+        if files.len() > 0 {
+            self.set_directory_files(files); 
+        }
+    }
+
     pub fn set_directory(&mut self, lists: Vec<PathBuf>){
         let mut path_str = vec![];
 
@@ -538,6 +567,10 @@ impl<'a> App<'a> {
             
         }
         self.directory =  ListState::new(path_str);
+    }
+
+    pub fn set_directory_files(&mut self, lists: Vec<Track>) {
+        self.directory_files =  ListState::new(lists);
     }
 
     pub fn get_directory_files(&mut self){
@@ -591,13 +624,12 @@ fn is_music(entry: &DirEntry) -> bool {
     }
 }
 
-fn init_tracks(path: String) -> ListState<Track>{
-    ListState::new(get_tracks_from_path(&PathBuf::from(path)).to_vec())
+fn init_tracks(path: &PathBuf) -> ListState<Track>{
+    ListState::new(get_tracks_from_path(path).to_vec())
 }
 
-fn init_directory(path: String) -> ListState<PathBuf>{
-        let init = PathBuf::from(path);
-        let lists = get_list_of_paths(&init);
+fn init_directory(path: &PathBuf) -> ListState<PathBuf>{
+        let lists = get_list_of_paths(&path);
         let mut path_str = vec![];
 
         for p in lists.unwrap() {
