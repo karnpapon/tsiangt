@@ -202,6 +202,7 @@ impl<I> ListState<I>{
             self.selected += 1
         }
     }
+
 }
 
 pub struct ControlState<'a> {
@@ -405,7 +406,8 @@ pub struct App<'a> {
     pub is_playing: bool,
     pub current_playback: Option<()>, // might need data type.
     pub playing_track_index: Option<usize>,
-    pub is_playlist_added: bool
+    pub is_playlist_added: bool,
+    pub should_select: bool
 }
 
 impl<'a> App<'a> {
@@ -422,8 +424,13 @@ impl<'a> App<'a> {
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
             is_quit: false,
             is_playing: false,
-            is_playlist_added: false
+            is_playlist_added: false,
+            should_select: false
         };
+    }
+
+    pub fn set_should_select(&mut self, state: bool){
+        self.should_select = state;
     }
 
     pub fn on_key_up(&mut self){
@@ -490,38 +497,63 @@ impl<'a> App<'a> {
         self.handle_get_directory_files(); 
      }
 
+     // not such an elegant way to handle the issue, but it's working.
+     pub fn get_current_item_lists(&mut self) -> usize{
+        let mut size: usize = 0;
+        let tab = self.tabs.get_current_title();
+        if tab == "library"{
+            match self.tabs.panels.get_title(){
+                "Directory" => { size = self.directory.items.len()},
+                "Files" => { size = self.directory_files.items.len()},
+                _ => {}
+            } 
+        } else if tab == "playlist" {
+           size = self.playlist.items.len();
+        } 
+        size
+     }
+
 
     pub fn on_key(&mut self, c: char){
         if c.is_digit(10) { 
             self.handle_tab(c.to_digit(10).unwrap() as usize) 
         } else { 
-            match c {
-            '\n' => match self.tabs.get_current_title() {
-                "playlist" => self.on_select_playing(),
-                "library" => {
-                    match self.tabs.panels.get_title(){
-                        "Directory" => {
-                            self.on_select_directory();
-                            self.on_select_directory_files();
-                        },
-                        "Files" => { self.on_select_directory_files_playing()},
-                        _ => {}
-                    }
-                },
-                _ => {  }
-            },
-            'b' => match self.tabs.panels.get_title() { 
-              "Directory" => self.redirect_parent_path(),
-              _ => {}
-            },
-            ' ' => { self.player.pause()},
-            'q' => { self.is_quit = true;},
-            'j' => { self.is_playlist_added = false; self.on_key_down()},
-            'k' => { self.is_playlist_added = false; self.on_key_up()},
-            'h' => { self.tabs.panels.prev_panel()},
-            'l' => { self.tabs.panels.next_panel()},
-            _ => {}
-        }
+
+            // check if current panel has any item, 
+            // otherwise disable keypress 
+            // (only tab selection available).
+            if self.get_current_item_lists() > 0 {
+               match c {
+                 '\n' => match self.tabs.get_current_title() {
+                     "playlist" => self.on_select_playing(),
+                     "library" => {
+                         match self.tabs.panels.get_title(){
+                             "Directory" => {
+                                 self.on_select_directory();
+                                 self.on_select_directory_files();
+                             },
+                             "Files" => { 
+                                 self.set_should_select(true);
+                                 self.on_select_directory_files_playing()
+                             },
+                             _ => {}
+                         }
+                     },
+                     _ => {  }
+                 },
+                 'b' => match self.tabs.panels.get_title() { 
+                   "Directory" => self.redirect_parent_path(),
+                   _ => {}
+                 },
+                 ' ' => { self.player.pause()},
+                 'q' => { self.is_quit = true;},
+                 'j' => { self.is_playlist_added = false; self.on_key_down()},
+                 'k' => { self.is_playlist_added = false; self.on_key_up()},
+                 'h' => { self.tabs.panels.prev_panel()},
+                 'l' => { self.tabs.panels.next_panel()},
+                 _ => {}
+                }   
+            }
         }
 
     }

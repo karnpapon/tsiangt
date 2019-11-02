@@ -54,20 +54,36 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
         .constraints([Constraint::Percentage(100)] .as_ref())
         .split(area);
 
-    let items = app
-        .playlist
-        .items
-        .iter()
-        .map(|item| TableItem {
-            id: item.title.to_string(),
-            format: vec![
-                item.title.to_string().to_owned(),
-                item.artist.to_string().to_owned(),
-                item.album.to_string().to_owned(),
-                //item.duration.to_string().to_owned(),
-            ],
-        })
-        .collect::<Vec<TableItem>>();
+
+    let is_track_highlighted: bool;
+
+    let mut items = Vec::new();
+    if app.playlist.items.len() > 0 {
+        // state.
+       is_track_highlighted = true;
+       //app.set_should_select(true);
+
+       items = app
+             .playlist
+             .items
+             .iter()
+             .map(|item| TableItem {
+                 id: item.title.to_string(),
+                 format: vec![
+                     item.title.to_string().to_owned(),
+                     item.artist.to_string().to_owned(),
+                     item.album.to_string().to_owned(),
+                 ],
+             })
+             .collect::<Vec<TableItem>>();
+    } else {
+        is_track_highlighted = false;
+        //app.set_should_select(false);
+         items.push(TableItem {
+             id: String::from( "placeholder" ),
+             format: vec!["No song added..".to_string()]
+         });
+    }
 
     let highlight_state = true;
 
@@ -85,10 +101,6 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
             text: "Album",
             width: get_percentage_width(area.width, 0.33),
         },
-       // TableHeader {
-       //     text: "Length",
-       //     width: get_percentage_width(area.width, 0.1),
-       // },
     ];
 
 
@@ -98,9 +110,9 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
         chunks[0],
         ("Playlist", &header),
         &items,
-        || app.get_playing_track_index(),
+        app.should_select,
         highlight_state,
-        true
+        is_track_highlighted
     );
 }
 
@@ -156,7 +168,7 @@ fn draw_third_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
         chunks[0],
         ( &app.tabs.panels.titles[1] , &header),
         &items,
-        || app.get_playing_track_index(),
+        false,
         highlight_state,
         false
     );
@@ -242,7 +254,7 @@ fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
         area,
         (&app.tabs.panels.titles[1], &header),
         &items,
-        || app.get_playing_track_index(),
+        true,
         *&app.tabs.panels.index == 1,
         true
     );
@@ -257,18 +269,17 @@ fn get_percentage_width(width: u16, percentage: f32) -> u16 {
 }
 
 
-fn draw_table<B,F>(
+fn draw_table<B>(
     f: &mut Frame<B>,
     app: &App,
     area: Rect,
     table_layout: (&str, &[TableHeader]), // (title, header colums)
     items: &[TableItem], // The nested vector must have the same length as the `header_columns`
-    select_fn: F,
+    should_select: bool,
     highlight_state: bool,
     should_active: bool
 ) where
     B: Backend,
-    F: Fn() -> Option<usize>
 {
     let selected_style = get_color(highlight_state);
         //.modifier(Modifier::BOLD);
@@ -301,6 +312,13 @@ fn draw_table<B,F>(
         ">".to_string()
     };
 
+    let select: Option<usize>;
+    if should_select {
+        select = app.get_playing_track_index();
+    } else {
+       select = None;
+    };
+
     PlaylistTable::new(header_columns.iter().map(|h| h.text), rows)
         .block(
             Block::default()
@@ -312,7 +330,7 @@ fn draw_table<B,F>(
         )
         .style(Style::default().fg(Color::White))
         .widths(&widths)
-        .select( select_fn() )
+        .select( select )
         .select_symbol(symbol)
         .render(f, area);
     }
