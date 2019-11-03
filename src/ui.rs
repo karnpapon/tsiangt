@@ -256,7 +256,7 @@ fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
         &items,
         true,
         *&app.tabs.panels.index == 1,
-        true
+        false
     );
 }
 

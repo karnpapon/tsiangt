@@ -20,46 +20,6 @@ use std::error;
 //
 
 
-const LIST: [&'static str; 28]  = [
-    "/folder01",
-    "/folder02",
-    "/folder03",
-    "/folder04",
-    "/folder05",
-    "/music",
-    "/relax",
-    "/misc",
-    "/hd",
-    "/coding",
-    "/foo",
-    "/bar",
-    "/folder01",
-    "/folder02",
-    "/folder03",
-    "/folder04",
-    "/folder05",
-    "/music",
-    "/relax",
-    "/misc",
-    "/hd",
-    "/coding",
-    "/foo",
-    "/bar",
-    "/baz",
-    "/enry",
-    "/baz",
-    "/enry"
-];
-
-
-const PLAYLIST: [&'static str; 5] = [
-    "warp portals",
-    "paper",
-    "gingliu",
-    "karnpapon",
-    "lagoon"
-];
-
 
 const PANEL: [&'static str; 2] =[
     "Directory",
@@ -72,110 +32,6 @@ const TABS: [&'static str; 3] = [
     "search"
 ];
 
-
-const FILES: [&'static str; 14] =[
-    "selected song1",
-    "selected song2",
-    "selected song3",
-    "selected song4",
-    "selected song5",
-    "selected song6",
-    "selected song7",
-    "selected song8",
-    "selected song9",
-    "selected song1q",
-    "selected song12",
-    "selected song13",
-    "selected song14",
-    "selected song15",
-];
-
-#[derive(Clone,Copy,Debug)]
-pub struct SongData<'a> {
-    pub title: &'a str,
-    pub artist: &'a str,
-    pub album: &'a str,
-    pub length: &'a str,
-    pub path: &'a str,
-    pub active: bool,
-    pub id: usize
-}
-
-
-// TODO: needs dynamic data.
-impl<'a> SongData<'a> {
-    fn new() -> Vec<SongData<'a>>{
-        MOCKDATA.to_vec()
-    }
-}
-
-const MOCKDATA: [SongData; 5] = [
-        SongData{
-            title: "song selected 1",
-            artist: "dkjjj",
-            album: "oiiii",
-            length: "12.34",
-            path: "/Users/mac/Desktop/test.mid",
-            active: false,
-            id: 1
-        },
-        SongData{
-            title: "oiuiou",
-            artist: "fjskldfj",
-            album: "XXXXxxx",
-            length: "12.34",
-            path: "/Users/mac/Desktop/test.mid",
-            active: false,
-            id: 2
-        },
-        SongData{
-            title: "lagooon",
-            artist: "i1o1ieu",
-            album: "1209fd",
-            length: "12.34",
-            path: "/Users/mac/Desktop/test.mid",
-            active: false,
-            id: 3
-        },
-        SongData{
-            title: "oraora",
-            artist: "ffififif",
-            album: "ippo",
-            length: "12.34",
-            path: "/Users/mac/Desktop/test.mid",
-            active: false,
-            id: 4
-        },
-        SongData{
-            title: "hhhhhhhhhh",
-            artist: "thehththe",
-            album: "oweiei",
-            length: "12.34",
-            path: "/Users/mac/Desktop/test.mid",
-            active: false,
-            id: 5
-        }
-    ];
-
-
-
-pub struct DirectoryList{
-    pub path: PathBuf,
-    pub name: String,
-    pub index: usize
-}
-
-
-impl DirectoryList {
-
-pub fn new(&mut self, p: PathBuf) -> DirectoryList{
-    DirectoryList{
-        path: p,
-        name: String::from("/directory00"),
-        index: 0
-    }
-}
-}
 
 #[derive(Debug, Clone)]
 pub struct ListState<I> {
@@ -203,6 +59,10 @@ impl<I> ListState<I>{
         }
     }
 
+    fn get_selected_item(&self) -> &I{
+        &self.items[self.selected]
+    }
+
 }
 
 pub struct ControlState<'a> {
@@ -219,20 +79,10 @@ impl<'a> ControlState<'a> {
     }
 
     pub fn prev_panel(&mut self){
-
-        // TODO: check whether using hardcoded index or dynamic.
-       // if self.index < ( self.titles.len() - 1 ) {
-       //     self.index += 1
-       // } 
        self.index = 0;
     }
 
     pub fn next_panel(&mut self){
-        
-        // TODO: check whether using hardcoded index or dynamic.
-       // if self.index > 0 {
-       //     self.index -= 1 
-       // } 
        self.index = 1;
     }
 
@@ -402,10 +252,9 @@ pub struct App<'a> {
     pub directory_files: ListState<Track>,
     pub playlist: ListState<Track>,
     pub tabs: TabState<'a>,
+    pub playing_track_index: Option<usize>,
     pub is_quit: bool,
     pub is_playing: bool,
-    pub current_playback: Option<()>, // might need data type.
-    pub playing_track_index: Option<usize>,
     pub is_playlist_added: bool,
     pub should_select: bool
 }
@@ -419,7 +268,6 @@ impl<'a> App<'a> {
             playlist: ListState::new(Vec::new()),
             directory: init_directory( &dirs::audio_dir().unwrap()),
             directory_files: init_tracks(&dirs::audio_dir().unwrap()),
-            current_playback: None,
             playing_track_index: None,
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
             is_quit: false,
@@ -475,18 +323,14 @@ impl<'a> App<'a> {
     }
 
      pub fn on_select_playing(&mut self) {
-
         self.is_playing = true;
-        let i = self.playlist.selected;
-
-        self.player.play(self.playlist.items[i].clone());
+        self.player.play(self.playlist.get_selected_item().clone());
         self.playing_track_index = self.get_playing_track_index();
     }
 
      pub fn on_select_directory_files_playing(&mut self){
         self.is_playlist_added = true;
-        let i = self.directory_files.selected;
-        self.playlist.items.push(self.directory_files.items[i].clone());
+        self.playlist.items.push(self.directory_files.get_selected_item().clone());
      }
 
      pub fn on_select_directory(&mut self){
@@ -560,14 +404,14 @@ impl<'a> App<'a> {
 
     fn redirect_parent_path(&mut self){
 
-        if let Some(d) = &self.directory.items[self.directory.selected].parent(){
+        if let Some(d) = self.directory.get_selected_item().parent(){
             let d = PathBuf::from(d.parent().unwrap());
 
            // stop at home root folder.
-           if d !=  dirs::home_dir().unwrap(){
+           //if d !=  dirs::home_dir().unwrap(){
                let p = get_list_of_paths(&d);
                self.set_directory(p.unwrap());
-           }
+           //}
         } 
         
     }
@@ -587,7 +431,7 @@ impl<'a> App<'a> {
     }
 
     pub fn handle_get_directory_files(&mut self){
-        let files = get_tracks_from_path( &self.directory.items[self.directory.selected]);
+        let files = get_tracks_from_path( self.directory.get_selected_item());
         if files.len() > 0 {
             self.set_directory_files(files); 
         }

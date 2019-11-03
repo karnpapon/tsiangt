@@ -218,16 +218,15 @@ where
                     Row::StyledData(d, s) => (d, s),
                 };
                 x = table_area.left();
-                for (w, elt) in widths.iter().zip(data){
+                for (i_w, (w, elt) ) in widths.iter().zip(data).enumerate() {
                     if let Some(sl) =  self.selected {
                         if sl == i + offset {
                             buf.set_stringn(
                                 x, y + i as u16, 
-                                // TODO: render indicator ">" only for first index.
-                                if i == 0 {
+                                if i_w == 0 {
                                     format!(" {} {}", self.select_symbol, elt) 
                                 } else {
-                                    format!(" {} {}", self.select_symbol, elt)
+                                    format!("   {}", elt)
                                 },
                                 *w as usize, 
                                 Style::default().fg(Color::Green)
