@@ -341,6 +341,15 @@ impl<'a> App<'a> {
         self.handle_get_directory_files(); 
      }
 
+
+    pub fn set_init_directory(&mut self, p: ListState<PathBuf>){
+        self.directory = p
+    }
+
+    pub fn set_init_directory_files(&mut self, f: ListState<Track>){
+        self.directory_files = f
+    }
+
      // not such an elegant way to handle the issue, but it's working.
      pub fn get_current_item_lists(&mut self) -> usize{
         let mut size: usize = 0;
@@ -361,7 +370,9 @@ impl<'a> App<'a> {
     pub fn on_key(&mut self, c: char){
         if c.is_digit(10) { 
             self.handle_tab(c.to_digit(10).unwrap() as usize) 
-        } else { 
+        } else if c == 'q' { 
+            self.is_quit = true;
+        } else {
 
             // check if current panel has any item, 
             // otherwise disable keypress 
@@ -390,7 +401,6 @@ impl<'a> App<'a> {
                    _ => {}
                  },
                  ' ' => { self.player.pause()},
-                 'q' => { self.is_quit = true;},
                  'j' => { self.is_playlist_added = false; self.on_key_down()},
                  'k' => { self.is_playlist_added = false; self.on_key_up()},
                  'h' => { self.tabs.panels.prev_panel()},
@@ -476,7 +486,7 @@ impl<'a> App<'a> {
 
 }
 
-fn is_not_hidden(entry: &PathBuf) -> bool {
+pub fn is_not_hidden(entry: &PathBuf) -> bool {
     entry
          .file_name()
          .unwrap()
@@ -528,11 +538,12 @@ fn is_music(entry: &DirEntry) -> bool {
     }
 }
 
-fn init_tracks(path: &PathBuf) -> ListState<Track>{
+pub fn init_tracks(path: &PathBuf) -> ListState<Track>{
     ListState::new(get_tracks_from_path(path).to_vec())
 }
 
-fn init_directory(path: &PathBuf) -> ListState<PathBuf>{
+
+pub fn init_directory(path: &PathBuf) -> ListState<PathBuf>{
         let lists = get_list_of_paths(&path);
         let mut path_str = vec![];
 
@@ -546,7 +557,9 @@ fn init_directory(path: &PathBuf) -> ListState<PathBuf>{
 }
 
 
-fn get_list_of_paths(root: &PathBuf) -> Option<Vec<PathBuf>> {
+
+
+pub fn get_list_of_paths(root: &PathBuf) -> Option<Vec<PathBuf>> {
     let mut result = vec![];
 
     // validation.

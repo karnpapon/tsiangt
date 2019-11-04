@@ -23,6 +23,9 @@ use crate::App::{Player, Track};
 use crate::events::{ Events, Event };
 
 
+use clap::{clap_app, crate_version};
+
+
 #[macro_use] extern crate failure;
 use failure::Error;
 
@@ -40,6 +43,14 @@ use failure::Error;
 
 fn main() -> Result<(), failure::Error> {
 
+    let clap = clap_app!( tsiangt =>
+                          (version:crate_version!())
+                          (author:"Karnpapon Boonput")
+                          (about:"tsiangt terminal music player!")
+                          (@arg directory: -d +takes_value "Sets directory")
+    )
+    .get_matches();
+
     let handle_events = Events::new();
     let device = rodio::default_output_device().expect("No audio output device found");
     let audio = Player::new(device);
@@ -53,11 +64,21 @@ fn main() -> Result<(), failure::Error> {
     terminal.clear()?;
 
 
+    match clap.value_of("directory"){
+        Some(c) => {
+            let d = PathBuf::from(c);
+            &app.set_init_directory(init_directory(&d));
+            &app.set_init_directory_files(init_tracks(&d));
+        },
+        _ => {}
+    };
+
     loop {
         ui::draw(&mut terminal, &app)?;
         if let Event::Input(input) = handle_events.next()? {
          match input {
                  Key::Char(c) => { app.on_key(c)}, 
+                 Key::Esc => { app.is_quit = true },
                  Key::Up => { app.on_key_up() },
                  Key::Down => { app.on_key_down();},
                  Key::Left => match app.tabs.get_current_title(){ 
