@@ -59,9 +59,8 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
 
     let mut items = Vec::new();
     if app.playlist.items.len() > 0 {
-        // state.
+
        is_track_highlighted = true;
-       //app.set_should_select(true);
 
        items = app
              .playlist
@@ -78,7 +77,6 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
              .collect::<Vec<TableItem>>();
     } else {
         is_track_highlighted = false;
-        //app.set_should_select(false);
          items.push(TableItem {
              id: String::from( "placeholder" ),
              format: vec!["No song added..".to_string()]
@@ -179,7 +177,6 @@ fn draw_third_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
 fn draw_directory<B>(f: &mut Frame<B>, app: &App, area: Rect)
     where B: Backend 
 {
-    let current_title = &app.tabs.panels.titles[0];
     let active = get_color(*&app.tabs.panels.index == 0);
 
     let mut d = Vec::new();
@@ -202,7 +199,7 @@ fn draw_directory<B>(f: &mut Frame<B>, app: &App, area: Rect)
             .block(
                 Block::default()
                 .borders(Borders::ALL)
-                .border_style( draw_active(app, current_title))
+                .border_style(active)
                 .title_style(active)
                 .title(app.tabs.panels.titles[app.tabs.index % app.tabs.titles.len() - 1])
             )
@@ -281,13 +278,8 @@ fn draw_table<B>(
 ) where
     B: Backend,
 {
-    let selected_style = get_color(highlight_state);
-        //.modifier(Modifier::BOLD);
-
-   
-
     let rows = items.iter().enumerate().map(|(i, item)| {
-        let mut formatted_row = item.format.clone();
+        let formatted_row = item.format.clone();
         let mut style = Style::default().fg(Color::White); // default styling
      
         // TODO: highlight from widget instead?
@@ -341,17 +333,4 @@ fn get_color(is_active : bool) -> Style {
         true => Style::default().fg(Color::Green),
         _ => Style::default().fg(Color::White),
     }
-}
-
-fn draw_active(app: &App, title: &str) -> Style {
-
-    let active_style = Style::default().fg(Color::Green);
-    let inactive_style = Style::default().fg(Color::White);
-    let active_panel = if app.tabs.panels.get_title() == title{
-         active_style
-    } else { 
-        inactive_style
-    };
-
-    active_panel
 }

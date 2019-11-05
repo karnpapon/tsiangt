@@ -7,10 +7,15 @@ use std::path::{ Path };
 use std::fmt::{self, Formatter, Display};
 use std::{ fs, io, path::PathBuf, ffi::OsStr };
 
+use crossbeam_channel::{Receiver, Sender};
+
 use ignore::{ Walk, DirEntry };
 use rodio::{Device, Sink};
 use id3::Tag;
 use std::error;
+
+
+use crate::player;
 
 
 //#[shell]
@@ -61,6 +66,10 @@ impl<I> ListState<I>{
 
     fn get_selected_item(&self) -> &I{
         &self.items[self.selected]
+    }
+
+    pub fn get_next_selected_item(&self) -> &I{
+        &self.items[self.selected + 1]
     }
 
 }
@@ -211,42 +220,9 @@ impl PartialEq for Track {
 }
 
 
-pub struct Player{
-   pub device: Device, 
-   pub handler: Sink
-}
-
-impl Player {
-    pub fn new(d: Device) -> Player {
-        Player{
-            handler: Sink::new(&d),
-            device: d
-        }
-    }
-
-    pub fn play(&mut self, track: Track){
-        self.handler = Sink::new(&self.device);
-        let file = File::open(&track.file_path).unwrap();
-        let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-        self.handler.append(source);
-    }
-
-    pub fn pause(&mut self){
-        if self.handler.is_paused() {
-            self.handler.play();
-        } else {
-            self.handler.pause();
-        }
-    }
-
-    pub fn stop(&mut self) {
-        self.handler = Sink::new(&self.device);
-    }
-}
-
 
 pub struct App<'a> {
-    pub player: Player,
+    //pub player: Player,
     pub title: &'a str,
     pub directory: ListState<PathBuf>,
     pub directory_files: ListState<Track>,
@@ -256,15 +232,17 @@ pub struct App<'a> {
     pub is_quit: bool,
     pub is_playing: bool,
     pub is_playlist_added: bool,
-    pub should_select: bool
+    pub should_select: bool,
+    pub track_x: Sender<Track>,
+    pub track_p_x: Sender<bool>,
 }
 
 impl<'a> App<'a> {
-    pub fn new(title: &'a str, player: Player) -> App<'a> {
+    pub fn new(title: &'a str, track_x :Sender<Track>, track_p_x: Sender<bool>) -> App<'a> {
         return 
         App{
             title,
-            player,
+            //player,
             playlist: ListState::new(Vec::new()),
             directory: init_directory( &dirs::audio_dir().unwrap()),
             directory_files: init_tracks(&dirs::audio_dir().unwrap()),
@@ -273,7 +251,9 @@ impl<'a> App<'a> {
             is_quit: false,
             is_playing: false,
             is_playlist_added: false,
-            should_select: false
+            should_select: false,
+            track_x,
+            track_p_x
         };
     }
 
@@ -324,7 +304,8 @@ impl<'a> App<'a> {
 
      pub fn on_select_playing(&mut self) {
         self.is_playing = true;
-        self.player.play(self.playlist.get_selected_item().clone());
+        let track = self.playlist.get_selected_item().clone();
+        self.track_x.send(track).unwrap();
         self.playing_track_index = self.get_playing_track_index();
     }
 
@@ -400,7 +381,8 @@ impl<'a> App<'a> {
                    "Directory" => self.redirect_parent_path(),
                    _ => {}
                  },
-                 ' ' => { self.player.pause()},
+                 ' ' => { self.track_p_x.send(true).unwrap()},
+                 's' => { self.track_p_x.send(false).unwrap()},
                  'j' => { self.is_playlist_added = false; self.on_key_down()},
                  'k' => { self.is_playlist_added = false; self.on_key_up()},
                  'h' => { self.tabs.panels.prev_panel()},
@@ -433,9 +415,7 @@ impl<'a> App<'a> {
 
     pub fn handle_get_directory(&mut self){
         //TODO: handle empty_folder, display text instead?
-            let item = &self.directory.items;
-            let i = self.directory.selected;
-            if let Some(res) = get_list_of_paths(&item[i]){
+            if let Some(res) = get_list_of_paths(self.directory.get_selected_item()){
                 self.set_directory(res);
             }
     }
@@ -461,12 +441,6 @@ impl<'a> App<'a> {
 
     pub fn set_directory_files(&mut self, lists: Vec<Track>) {
         self.directory_files =  ListState::new(lists);
-    }
-
-    pub fn get_directory_files(&mut self){
-        let p = self.directory.items[self.directory.selected].clone();
-        let d = get_tracks_from_path(&p);
-        //self.directory_files = ListState::new(d);
     }
 
    //  pub fn handle_shell(&self) ->  Result<(), Box<dyn error::Error>> {

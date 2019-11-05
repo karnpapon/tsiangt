@@ -3,6 +3,7 @@ mod App;
 mod events;
 mod ui;
 mod custom_widgets;
+mod player;
 
 use std::io;
 use std::path::PathBuf;
@@ -19,8 +20,12 @@ use ignore::{Walk, DirEntry};
 
 use crate::App::App as Application;
 use crate::App::*;
-use crate::App::{Player, Track};
+use crate::App::{Track};
 use crate::events::{ Events, Event };
+use crate::player::{ Player };
+
+use std::thread;
+use crossbeam_channel as channel;
 
 
 use clap::{clap_app, crate_version};
@@ -53,8 +58,6 @@ fn main() -> Result<(), failure::Error> {
 
     let handle_events = Events::new();
     let device = rodio::default_output_device().expect("No audio output device found");
-    let audio = Player::new(device);
-    let mut app = Application::new("/tsiangt/", audio);  
 
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = AlternateScreen::from(stdout); // important!, separated into new screen (without data overlay with standard terminal screen).
@@ -63,6 +66,12 @@ fn main() -> Result<(), failure::Error> {
     terminal.hide_cursor()?; // hide native terminal cursor.
     terminal.clear()?;
 
+
+    let (track_x, track_rx) = channel::bounded(0);
+    let (track_p_x, track_p_rx) = channel::bounded(0);
+
+    let mut app = Application::new("/tsiangt/", track_x, track_p_x);  
+    let mut audio = Player::new(device, track_rx, track_p_rx);
 
     match clap.value_of("directory"){
         Some(c) => {
@@ -73,6 +82,21 @@ fn main() -> Result<(), failure::Error> {
         _ => {}
     };
 
+
+    thread::spawn(move|| {
+        loop{
+            if let Ok(track) = audio.track_rx.try_recv() {
+                audio.play(track)
+            }
+
+            match audio.track_p_rx.try_recv(){
+                Ok(true) => audio.pause(),
+                Ok(false) => audio.stop(),
+                _ => {}
+            }
+        }
+    });
+     
     loop {
         ui::draw(&mut terminal, &app)?;
         if let Event::Input(input) = handle_events.next()? {
@@ -95,6 +119,13 @@ fn main() -> Result<(), failure::Error> {
              }
          }
 
+       // if app.is_playing{
+       //     if app.player.handler.empty() {
+       //         app.player.play(app.playlist.get_next_selected_item().clone());
+       //         app.playing_track_index = app.get_playing_track_index();
+       //     }
+       // }
+        
          if app.is_quit {
               break;
          }
