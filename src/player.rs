@@ -8,16 +8,26 @@ pub struct Player{
    pub device: Device, 
    pub handler: Sink,
    pub track_rx: Receiver<Track>,
-   pub track_p_rx: Receiver<bool>
+   pub track_p_rx: Receiver<bool>,
+   pub track_i_x: Sender<bool>,
+   pub track_atp_rx: Receiver<Track>
 }
 
 impl Player {
-    pub fn new(d: Device, track_rx: Receiver<Track>, track_p_rx: Receiver<bool>) -> Player {
+    pub fn new(
+        d: Device, 
+        track_rx: Receiver<Track>, 
+        track_p_rx: Receiver<bool>, 
+        track_i_x: Sender<bool>,
+        track_atp_rx: Receiver<Track>
+        ) -> Player {
         Player{
             handler: Sink::new(&d),
             device: d,
             track_rx,
-            track_p_rx
+            track_p_rx,
+            track_i_x,
+            track_atp_rx
         }
     }
 

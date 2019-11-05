@@ -8,6 +8,7 @@ mod player;
 use std::io;
 use std::path::PathBuf;
 use std::fs;
+use std::time::Duration;
 
 extern crate dirs;
 
@@ -67,11 +68,13 @@ fn main() -> Result<(), failure::Error> {
     terminal.clear()?;
 
 
-    let (track_x, track_rx) = channel::bounded(0);
-    let (track_p_x, track_p_rx) = channel::bounded(0);
+    let (track_x, track_rx) = channel::bounded(0); // Track
+    let (track_p_x, track_p_rx) = channel::bounded(0); // Track's play/pause.
+    let (track_i_x, track_i_rx) = channel::bounded(0); // Track's information (when to start/stop).
+    let (track_atp_x, track_atp_rx) = channel::bounded(0); // Track's autoplay.
 
-    let mut app = Application::new("/tsiangt/", track_x, track_p_x);  
-    let mut audio = Player::new(device, track_rx, track_p_rx);
+    let mut app = Application::new("/tsiangt/", track_x, track_p_x, track_i_rx, track_atp_x);  
+    let mut audio = Player::new(device, track_rx, track_p_rx, track_i_x, track_atp_rx);
 
     match clap.value_of("directory"){
         Some(c) => {
@@ -82,11 +85,21 @@ fn main() -> Result<(), failure::Error> {
         _ => {}
     };
 
-
     thread::spawn(move|| {
         loop{
+
+            if audio.handler.empty(){
+                if let Ok(()) = audio.track_i_x.send_timeout(true, Duration::from_millis(250)){}
+            } else if let Ok(()) = audio.track_i_x.send_timeout(false, Duration::from_millis(250)){
+            }
+
             if let Ok(track) = audio.track_rx.try_recv() {
                 audio.play(track)
+            }
+
+
+            if let Ok(next_in_queue) = audio.track_atp_rx.try_recv(){
+                audio.play(next_in_queue);
             }
 
             match audio.track_p_rx.try_recv(){
@@ -119,13 +132,17 @@ fn main() -> Result<(), failure::Error> {
              }
          }
 
-       // if app.is_playing{
-       //     if app.player.handler.empty() {
-       //         app.player.play(app.playlist.get_next_selected_item().clone());
-       //         app.playing_track_index = app.get_playing_track_index();
-       //     }
-       // }
-        
+               
+        if let Ok(true) = app.track_i_rx.recv_timeout(Duration::from_millis(250)){
+            if app.playlist.items.len() > 1 && app.is_playing{
+                if let Ok(()) = app.track_atp_x.send_timeout(
+                    app.playlist.get_next_selected_item().clone(), 
+                    Duration::from_millis(250)
+                ){};
+                app.set_next_queue_playing_index();
+            }
+        } 
+
          if app.is_quit {
               break;
          }

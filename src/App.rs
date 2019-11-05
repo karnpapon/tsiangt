@@ -52,6 +52,7 @@ impl<I> ListState<I>{
         } 
     }
 
+    //TODO: make more sense to reverse next with prev. 
     fn select_next(&mut self) {
         if self.selected > 0 {
             self.selected -= 1
@@ -235,10 +236,18 @@ pub struct App<'a> {
     pub should_select: bool,
     pub track_x: Sender<Track>,
     pub track_p_x: Sender<bool>,
+    pub track_i_rx: Receiver<bool>,
+    pub track_atp_x: Sender<Track>
 }
 
 impl<'a> App<'a> {
-    pub fn new(title: &'a str, track_x :Sender<Track>, track_p_x: Sender<bool>) -> App<'a> {
+    pub fn new(
+        title: &'a str, 
+        track_x :Sender<Track>, 
+        track_p_x: Sender<bool>, 
+        track_i_rx: Receiver<bool>,
+        track_atp_x: Sender<Track>
+        ) -> App<'a> {
         return 
         App{
             title,
@@ -253,7 +262,9 @@ impl<'a> App<'a> {
             is_playlist_added: false,
             should_select: false,
             track_x,
-            track_p_x
+            track_p_x,
+            track_i_rx,
+            track_atp_x
         };
     }
 
@@ -307,6 +318,10 @@ impl<'a> App<'a> {
         let track = self.playlist.get_selected_item().clone();
         self.track_x.send(track).unwrap();
         self.playing_track_index = self.get_playing_track_index();
+    }
+
+    pub fn set_next_queue_playing_index(&mut self){
+        self.playing_track_index = Some(self.playlist.selected + 1);
     }
 
      pub fn on_select_directory_files_playing(&mut self){
@@ -381,8 +396,8 @@ impl<'a> App<'a> {
                    "Directory" => self.redirect_parent_path(),
                    _ => {}
                  },
-                 ' ' => { self.track_p_x.send(true).unwrap()},
-                 's' => { self.track_p_x.send(false).unwrap()},
+                 ' ' => { self.is_playing = !self.is_playing; self.track_p_x.send(true).unwrap()},
+                 's' => { self.is_playing = !self.is_playing; self.track_p_x.send(false).unwrap()},
                  'j' => { self.is_playlist_added = false; self.on_key_down()},
                  'k' => { self.is_playlist_added = false; self.on_key_up()},
                  'h' => { self.tabs.panels.prev_panel()},

@@ -2,9 +2,26 @@
 
 ### terminal music player
 เสียง ( \siang\ ) means "sound" in Thai language.
-using vim keybinding movement.
 
-this library built with
+### Usage
+- set directory by `-d <directory>`, otherwise tsiangt will use default music's directory path, depends on OS. see [this](https://docs.rs/dirs/2.0.2/dirs/fn.audio_dir.html) for more details.
+
+#### Keybinding
+
+you'll feel at home if you're familiar with vim keybinding.
+
+Description |  Operation | note
+--- | --- | ---
+switch to playlist tab | `1` |
+switch to library tab | `2` |
+switch to search tab | `3` | soon..
+play / pause | `spacebar` |
+move-left | `h` or `arrow-left` |
+move-right | `l` or `arrow-right` |
+move-up | `k` or `arrow-up` |
+move-down | `j` or `arrow-down` |
+
+built with
 - [tui-rs](https://github.com/fdehau/tui-rs)
 - [termion](https://github.com/redox-os/termion)
 - [rodio](https://github.com/RustAudio/rodio)
