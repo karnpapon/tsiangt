@@ -42,7 +42,8 @@ where
     column_spacing: u16,
     /// Data to display in each row
     rows: R,
-    select_symbol: String
+    select_symbol: String,
+    select_active_style: Style
 }
 
 impl<'a, T, H, I, D, R> Default for Table<'a, T, H, I, D, R>
@@ -65,6 +66,7 @@ where
             rows: R::default(),
             column_spacing: 1,
             select_symbol: String::new(),
+            select_active_style: Style::default()
         }
     }
    
@@ -89,7 +91,8 @@ where
             height: 0,
             rows,
             column_spacing: 1,
-            select_symbol: String::from(">")
+            select_symbol: String::from(">"),
+            select_active_style: Style::default()
         }
     }
     pub fn block(mut self, block: Block<'a>) -> Table<'a, T, H, I, D, R> {
@@ -125,6 +128,11 @@ where
 
     pub fn style(mut self, style: Style) -> Table<'a, T, H, I, D, R> {
         self.style = style;
+        self
+    }
+
+    pub fn set_select_active_style(mut self, style: Style) -> Table<'a, T,H,I,D,R>{
+        self.select_active_style = style;
         self
     }
 
@@ -229,7 +237,7 @@ where
                                     format!("   {}", elt)
                                 },
                                 *w as usize, 
-                                Style::default().fg(Color::Green)
+                                self.select_active_style
                             );
                         } 
                         else {

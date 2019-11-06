@@ -285,7 +285,7 @@ fn draw_table<B>(
         // TODO: highlight from widget instead?
         if should_active {
             match app.playing_track_index {
-                Some(x) => if i == x { style = Style::default().fg(Color::Red);},
+                Some(x) => if i == x { style = Style::default().fg(Color::Green);},
                 None => {}
             }
         }
@@ -295,12 +295,15 @@ fn draw_table<B>(
 
     
     let (title, header_columns) = table_layout;
+    let select_active: Style;
 
     let widths = header_columns.iter().map(|h| h.width).collect::<Vec<u16>>();
 
     let symbol = if app.is_playlist_added {
+        select_active = Style::default().fg(Color::Green);
         "+".to_string()
     } else {
+        select_active = Style::default().fg(Color::Gray);
         ">".to_string()
     };
 
@@ -323,6 +326,7 @@ fn draw_table<B>(
         .style(Style::default().fg(Color::White))
         .widths(&widths)
         .select( select )
+        .set_select_active_style(select_active)
         .select_symbol(symbol)
         .render(f, area);
     }

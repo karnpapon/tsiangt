@@ -223,7 +223,6 @@ impl PartialEq for Track {
 
 
 pub struct App<'a> {
-    //pub player: Player,
     pub title: &'a str,
     pub directory: ListState<PathBuf>,
     pub directory_files: ListState<Track>,
