@@ -53,13 +53,13 @@ impl<I> ListState<I>{
     }
 
     //TODO: make more sense to reverse next with prev. 
-    fn select_next(&mut self) {
+    fn select_prev(&mut self) {
         if self.selected > 0 {
             self.selected -= 1
         }
     }
 
-    fn select_prev( &mut self){
+    fn select_next( &mut self){
         if self.selected < ( self.items.len() - 1 ){
             self.selected += 1
         }
@@ -69,8 +69,8 @@ impl<I> ListState<I>{
         &self.items[self.selected]
     }
 
-    pub fn get_next_selected_item(&self) -> &I{
-        &self.items[self.selected + 1]
+    pub fn get_next_selected_item(&mut self, i: usize) -> &I{
+        &self.items[i]
     }
 
 }
@@ -142,7 +142,7 @@ impl Track {
 
     pub fn new(path: PathBuf) -> Result<Track, ()> {
         let tag = Tag::read_from_path(&path);
-
+        
         if tag.is_err() {
             return Err(());
         }
@@ -251,10 +251,9 @@ impl<'a> App<'a> {
         return 
         App{
             title,
-            //player,
             playlist: ListState::new(Vec::new()),
-            directory: init_directory( &dirs::audio_dir().unwrap()),
-            directory_files: init_tracks(&dirs::audio_dir().unwrap()),
+            directory: ListState::new(Vec::new()),
+            directory_files: ListState::new(Vec::new()),
             playing_track_index: None,
             tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
             is_quit: false,
@@ -274,16 +273,16 @@ impl<'a> App<'a> {
 
     pub fn on_key_up(&mut self){
         match self.tabs.get_current_title() {
-           "playlist" => {self.playlist.select_next()},
-           "library" => { self.handle_panel_select_next()},
+           "playlist" => {self.playlist.select_prev()},
+           "library" => { self.handle_panel_select_prev()},
            _ => {}
         }
     }
 
     pub fn on_key_down(&mut self) {
          match self.tabs.get_current_title() {
-           "playlist" => {self.playlist.select_prev()},
-           "library" => {self.handle_panel_select_prev()},
+           "playlist" => {self.playlist.select_next()},
+           "library" => {self.handle_panel_select_next()},
            _ => {}
         }
     }
@@ -315,13 +314,17 @@ impl<'a> App<'a> {
 
      pub fn on_select_playing(&mut self) {
         self.is_playing = true;
+        self.playing_track_index = self.get_playing_track_index();
         let track = self.playlist.get_selected_item().clone();
         self.track_x.send(track).unwrap();
-        self.playing_track_index = self.get_playing_track_index();
     }
 
     pub fn set_next_queue_playing_index(&mut self){
-        self.playing_track_index = Some(self.playlist.selected + 1);
+        self.playing_track_index = Some(self.playing_track_index.unwrap() + 1);
+    }
+
+    pub fn reset_playing_track_index(&mut self){
+        self.playing_track_index = None;
     }
 
      pub fn on_select_directory_files_playing(&mut self){
@@ -499,6 +502,7 @@ fn is_music_in_folder(path: &PathBuf) -> bool {
                      Some("mp3") =>  has_audio_file = true,
                      Some("flac") => has_audio_file = true,
                      Some("ogg") => has_audio_file = true,
+                     Some("wav") => has_audio_file = true,
                      _ => return false,
                  };
              } 
@@ -520,6 +524,7 @@ fn is_music(entry: &DirEntry) -> bool {
             Some("mp3") => return true,
             Some("flac") => return true,
             Some("ogg") => return true,
+            Some("wav") => return true,
             _ => return false,
         };
     } else {

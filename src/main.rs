@@ -36,6 +36,7 @@ use clap::{clap_app, crate_version};
 use failure::Error;
 
 
+
 //#[macro_use]
 //extern crate shells;
 
@@ -82,7 +83,10 @@ fn main() -> Result<(), failure::Error> {
             &app.set_init_directory(init_directory(&d));
             &app.set_init_directory_files(init_tracks(&d));
         },
-        _ => {}
+        _ => {
+            &app.set_init_directory( init_directory( &dirs::audio_dir().unwrap() ));
+            &app.set_init_directory_files(init_tracks(&dirs::audio_dir().unwrap()));
+        }
     };
 
     thread::spawn(move|| {
@@ -110,7 +114,7 @@ fn main() -> Result<(), failure::Error> {
         }
     });
      
-    loop {
+   loop {
         ui::draw(&mut terminal, &app)?;
         if let Event::Input(input) = handle_events.next()? {
          match input {
@@ -134,15 +138,23 @@ fn main() -> Result<(), failure::Error> {
 
                
         if let Ok(true) = app.track_i_rx.recv_timeout(Duration::from_millis(250)){
-            if app.playlist.items.len() > 1 && app.is_playing{
-                if let Ok(()) = app.track_atp_x.send_timeout(
-                    app.playlist.get_next_selected_item().clone(), 
-                    Duration::from_millis(250)
-                ){};
-                app.set_next_queue_playing_index();
-            }
-        } 
+            if app.playlist.items.len() > 1 && app.is_playing {
 
+                // TODO: better handling playing_track_index is needed.
+                if &app.playing_track_index.unwrap() + 1 > app.playlist.items.len() - 1 {
+                    app.is_playing = !app.is_playing; 
+                    app.track_p_x.send(false).unwrap();
+                    app.reset_playing_track_index();
+                } else {
+                 if let Ok(()) = app.track_atp_x.send(
+                     app.playlist.get_next_selected_item( app.playing_track_index.unwrap() + 1).clone(), 
+                 ){};
+                 app.set_next_queue_playing_index();
+                }
+            }
+        } else {}  
+
+       
          if app.is_quit {
               break;
          }
