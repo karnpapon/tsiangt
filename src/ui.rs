@@ -3,12 +3,11 @@ use crate::App::App;
 use crate::custom_widgets::{Table as PlaylistTable, Row as PlaylistRow};
 
 use std::io;
-use termion::raw::IntoRawMode;
 use tui::{ Terminal, Frame };
-use tui::backend::{ TermionBackend, Backend };
-use tui::widgets::{Widget, Block, Borders, List, Tabs, Row, Table, SelectableList};
+use tui::backend::{ Backend };
+use tui::widgets::{Widget, Block, Borders, Tabs, SelectableList};
 use tui::layout::{Layout, Constraint, Direction, Rect};
-use tui::style::{Color, Modifier, Style};
+use tui::style::{Color,  Style};
 
 
 pub struct TableHeader<'a> {
@@ -34,7 +33,7 @@ pub fn draw<B>(terminal: &mut Terminal<B>, app: &App)  -> Result<(), io::Error>
             .block(Block::default().borders(Borders::ALL).title(app.title))
             .titles(&app.tabs.titles)
             .style(Style::default())
-            .highlight_style(Style::default().fg(Color::Yellow))
+            .highlight_style(Style::default().fg(Color::Green))
             .select(app.tabs.index)
             .render(&mut f, chunks[0]);
         match app.tabs.index {
@@ -77,30 +76,12 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
              .collect::<Vec<TableItem>>();
     } else {
         is_track_highlighted = false;
-         items.push(TableItem {
-             id: String::from( "placeholder" ),
-             format: vec!["No song added..".to_string()]
-         });
+         items.push(get_init_selection_table_state("No song added.."));
     }
 
     let highlight_state = true;
 
-
-    let header = [
-        TableHeader {
-            text: "  Title",
-            width: get_percentage_width(area.width, 0.33),
-        },
-        TableHeader {
-            text: "Artist",
-            width: get_percentage_width(area.width, 0.33),
-        },
-        TableHeader {
-            text: "Album",
-            width: get_percentage_width(area.width, 0.33),
-        },
-    ];
-
+    let header = get_header(&area);
 
     draw_table(
         f,
@@ -136,30 +117,12 @@ fn draw_third_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
 
      let mut items = Vec::new();
 
-    items.push(TableItem {
-        id: String::from( "placeholder" ),
-        format: vec!["No Results found..".to_string()]
-    });
+    items.push(get_init_selection_table_state("No Result found.."));
 
     let highlight_state = true;
 
-
-    let header = [
-        TableHeader {
-            text: "  Title",
-            width: get_percentage_width(area.width, 0.33),
-        },
-        TableHeader {
-            text: "Artist",
-            width: get_percentage_width(area.width, 0.33),
-        },
-        TableHeader {
-            text: "Album",
-            width: get_percentage_width(area.width, 0.33),
-        },
-    ];
-
-
+    let header = get_header(&area);
+   
     draw_table(
         f,
         app,
@@ -205,7 +168,7 @@ fn draw_directory<B>(f: &mut Frame<B>, app: &App, area: Rect)
             )
             .items(&d)
             .select(Some(app.directory.selected))
-            .highlight_style(Style::default().fg(Color::Green))
+            .highlight_style(Style::default().fg(Color::Gray))
             .highlight_symbol(">")
             .render(f, area);
 }
@@ -229,21 +192,7 @@ fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
        })
        .collect::<Vec<TableItem>>();
 
-    let header = [
-        TableHeader {
-            text: "  Title",
-            width: get_percentage_width(area.width, 0.33),
-        },
-        TableHeader {
-            text: "Artist",
-            width: get_percentage_width(area.width, 0.33),
-        },
-        TableHeader {
-            text: "Album",
-            width: get_percentage_width(area.width, 0.33),
-        },
-];
-
+    let header = get_header(&area);
 
     draw_table(
         f,
@@ -258,20 +207,12 @@ fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
 }
 
 
-// `percentage` param needs to be between 0 and 1
-fn get_percentage_width(width: u16, percentage: f32) -> u16 {
-    let padding = 3;
-    let width = width - padding;
-    (f32::from(width) * percentage) as u16
-}
-
-
 fn draw_table<B>(
     f: &mut Frame<B>,
     app: &App,
     area: Rect,
-    table_layout: (&str, &[TableHeader]), // (title, header colums)
-    items: &[TableItem], // The nested vector must have the same length as the `header_columns`
+    table_layout: (&str, &[TableHeader]), 
+    items: &[TableItem],     
     should_select: bool,
     highlight_state: bool,
     should_active: bool
@@ -299,13 +240,9 @@ fn draw_table<B>(
 
     let widths = header_columns.iter().map(|h| h.width).collect::<Vec<u16>>();
 
-    let symbol = if app.is_playlist_added {
-        select_active = Style::default().fg(Color::Green);
-        "+".to_string()
-    } else {
-        select_active = Style::default().fg(Color::Gray);
-        ">".to_string()
-    };
+    let symbol = get_symbol(app.is_playlist_added);
+    select_active = get_select_active_color(app.is_playlist_added);
+
 
     let select: Option<usize>;
     if should_select {
@@ -332,9 +269,69 @@ fn draw_table<B>(
     }
 
 
+//--------------------------------------
+//------------- helpers ----------------.
+//--------------------------------------
+//
+
+
+// `percentage` param needs to be between 0 and 1
+fn get_percentage_width(width: u16, percentage: f32) -> u16 {
+    let padding = 3;
+    let width = width - padding;
+    (f32::from(width) * percentage) as u16
+}
+
+
 fn get_color(is_active : bool) -> Style {
     match is_active {
         true => Style::default().fg(Color::Green),
         _ => Style::default().fg(Color::White),
     }
+}
+
+fn get_symbol(state: bool) -> String {
+    match state {
+        true => { "+".to_string()},
+        _ => { ">".to_string()}
+    }
+}
+
+
+fn get_select_active_color(state: bool) -> Style {
+    match state {
+        true => {Style::default().fg(Color::Green)},
+        _ => {Style::default().fg(Color::Gray)}
+    }
+        
+}
+
+fn get_header(area: &Rect) -> [TableHeader; 3]{
+
+  let header = [
+        TableHeader {
+            text: "  Title",
+            width: get_percentage_width(area.width, 0.33),
+        },
+        TableHeader {
+            text: "Artist",
+            width: get_percentage_width(area.width, 0.33),
+        },
+        TableHeader {
+            text: "Album",
+            width: get_percentage_width(area.width, 0.33),
+        },
+];
+
+  header
+
+}
+
+fn get_init_selection_table_state(placeholder: &str) -> TableItem{
+  let item = TableItem {
+        id: String::from( "placeholder" ),
+        format: vec![placeholder.to_string()]
+    };
+
+  item
 }

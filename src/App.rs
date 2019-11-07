@@ -318,6 +318,10 @@ impl<'a> App<'a> {
         self.track_x.send(track).unwrap();
     }
 
+     pub fn get_next_playing_index(&self) -> Option<usize>{
+        Some(self.playing_track_index.unwrap() + 1)
+     }
+
     pub fn set_next_queue_playing_index(&mut self){
         self.playing_track_index = Some(self.playing_track_index.unwrap() + 1);
     }
@@ -329,6 +333,8 @@ impl<'a> App<'a> {
      pub fn on_select_directory_files_playing(&mut self){
         self.is_playlist_added = true;
         self.playlist.items.push(self.directory_files.get_selected_item().clone());
+
+        
      }
 
      pub fn on_select_directory(&mut self){
@@ -367,7 +373,8 @@ impl<'a> App<'a> {
 
     pub fn on_key(&mut self, c: char){
         if c.is_digit(10) { 
-            self.handle_tab(c.to_digit(10).unwrap() as usize) 
+            self.handle_tab(c.to_digit(10).unwrap() as usize) ;
+            self.reset_is_playlist_added();
         } else if c == 'q' { 
             self.is_quit = true;
         } else {
@@ -398,17 +405,16 @@ impl<'a> App<'a> {
                    "Directory" => self.redirect_parent_path(),
                    _ => {}
                  },
-                 ' ' => { self.is_playing = !self.is_playing; self.track_p_x.send(true).unwrap()},
-                 's' => { self.is_playing = !self.is_playing; self.track_p_x.send(false).unwrap()},
-                 'j' => { self.is_playlist_added = false; self.on_key_down()},
-                 'k' => { self.is_playlist_added = false; self.on_key_up()},
-                 'h' => { self.tabs.panels.prev_panel()},
-                 'l' => { self.tabs.panels.next_panel()},
+                 ' ' => { self.toggle_is_playing(); self.track_p_x.send(true).unwrap()},
+                 's' => { self.toggle_is_playing(); self.track_p_x.send(false).unwrap()},
+                 'j' => { self.reset_is_playlist_added(); self.on_key_down()},
+                 'k' => { self.reset_is_playlist_added(); self.on_key_up()},
+                 'h' => { self.reset_is_playlist_added(); self.tabs.panels.prev_panel()},
+                 'l' => { self.reset_is_playlist_added(); self.tabs.panels.next_panel()},
                  _ => {}
                 }   
             }
         }
-
     }
 
     fn redirect_parent_path(&mut self){
@@ -428,6 +434,14 @@ impl<'a> App<'a> {
 
     pub fn handle_tab(&mut self, i: usize){
         self.tabs.set_tab_index(i);
+    }
+
+    pub fn toggle_is_playing(&mut self){
+        self.is_playing = !self.is_playing;
+    }
+
+    pub fn reset_is_playlist_added(&mut self){
+        self.is_playlist_added = false;
     }
 
     pub fn handle_get_directory(&mut self){

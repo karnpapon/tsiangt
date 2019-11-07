@@ -14,6 +14,7 @@ Description |  Operation | note
 --- | --- | ---
 add song to playlist (at library page) | `enter` or `return` |
 play (at playlist page) | `enter` or `return` |
+stop | `s` |
 switch to playlist tab | `1` |
 switch to library tab | `2` |
 switch to search tab | `3` | soon..

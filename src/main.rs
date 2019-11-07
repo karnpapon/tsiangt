@@ -8,7 +8,7 @@ mod player;
 use std::io;
 use std::path::PathBuf;
 use std::fs;
-use std::time::Duration;
+use std::time::{ Duration };
 
 extern crate dirs;
 
@@ -120,16 +120,22 @@ fn main() -> Result<(), failure::Error> {
          match input {
                  Key::Char(c) => { app.on_key(c)}, 
                  Key::Esc => { app.is_quit = true },
-                 Key::Up => { app.on_key_up() },
-                 Key::Down => { app.on_key_down();},
+                 Key::Up => { app.reset_playing_track_index(); app.on_key_up() },
+                 Key::Down => { app.reset_playing_track_index(); app.on_key_down();},
                  Key::Left => match app.tabs.get_current_title(){ 
                      "playlist" => {},
-                     "library" => app.tabs.panels.prev_panel(),
+                     "library" => { 
+                         app.reset_playing_track_index();
+                         app.tabs.panels.prev_panel() 
+                     }
                      _ => {}
                  },
                  Key::Right => match app.tabs.get_current_title(){ 
                      "playlist" => {},
-                     "library" => app.tabs.panels.next_panel(),
+                     "library" => { 
+                         app.reset_playing_track_index();
+                         app.tabs.panels.next_panel();
+                     }
                      _ => {}
                  },
                  _ => {}
@@ -140,14 +146,15 @@ fn main() -> Result<(), failure::Error> {
         if let Ok(true) = app.track_i_rx.recv_timeout(Duration::from_millis(250)){
             if app.playlist.items.len() > 1 && app.is_playing {
 
-                // TODO: better handling playing_track_index is needed.
-                if &app.playing_track_index.unwrap() + 1 > app.playlist.items.len() - 1 {
+                // handle stop at the end of playlist(queue).
+                if app.get_next_playing_index().unwrap() > app.playlist.items.len() - 1 {
                     app.is_playing = !app.is_playing; 
                     app.track_p_x.send(false).unwrap();
                     app.reset_playing_track_index();
                 } else {
+                // handle next song in queue.
                  if let Ok(()) = app.track_atp_x.send(
-                     app.playlist.get_next_selected_item( app.playing_track_index.unwrap() + 1).clone(), 
+                     app.playlist.get_next_selected_item(app.get_next_playing_index().unwrap()).clone(), 
                  ){};
                  app.set_next_queue_playing_index();
                 }
