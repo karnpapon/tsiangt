@@ -333,15 +333,13 @@ impl<'a> App<'a> {
      pub fn on_select_directory_files_playing(&mut self){
         self.is_playlist_added = true;
         self.playlist.items.push(self.directory_files.get_selected_item().clone());
-
-        
      }
 
      pub fn on_select_directory(&mut self){
         self.handle_get_directory();
      }
 
-     pub fn on_select_directory_files(&mut self){
+     pub fn on_set_directory_files(&mut self){
         self.handle_get_directory_files(); 
      }
 
@@ -390,7 +388,6 @@ impl<'a> App<'a> {
                          match self.tabs.panels.get_title(){
                              "Directory" => {
                                  self.on_select_directory();
-                                 self.on_select_directory_files();
                              },
                              "Files" => { 
                                  self.set_should_select(true);
@@ -445,14 +442,19 @@ impl<'a> App<'a> {
     }
 
     pub fn handle_get_directory(&mut self){
-        //TODO: handle empty_folder, display text instead?
-            if let Some(res) = get_list_of_paths(self.directory.get_selected_item()){
-                self.set_directory(res);
+            let path = self.directory.get_selected_item();
+            if let Some(res) = get_list_of_paths(&PathBuf::from(path)){
+                if res.iter().any(|item| is_music_in_folder(&item)) {
+                    self.on_set_directory_files();
+                } else {
+                    self.set_directory(res);
+                }
             }
     }
 
     pub fn handle_get_directory_files(&mut self){
-        let files = get_tracks_from_path( self.directory.get_selected_item());
+        let path = self.directory.get_selected_item();
+        let files = get_tracks_from_path(&PathBuf::from(path));
         if files.len() > 0 {
             self.set_directory_files(files); 
         }
@@ -501,16 +503,10 @@ pub fn is_not_hidden(entry: &PathBuf) -> bool {
 }
 
 fn is_music_in_folder(path: &PathBuf) -> bool {
-//    let metadata = fs::metadata(entry.path()).unwrap();
-//    if metadata.is_dir() {
-//        return false;
-//    }
-//
+
     let mut has_audio_file: bool = false;
 
-    for entry in path.read_dir().expect("cannot read dir"){
-        if let Ok(entry) = entry {
-             if let Some(extension) = entry.path().extension() {
+             if let Some(extension) = path.extension() {
                  match extension.to_str() {
                      Some("mp3") =>  has_audio_file = true,
                      Some("flac") => has_audio_file = true,
@@ -519,12 +515,10 @@ fn is_music_in_folder(path: &PathBuf) -> bool {
                      _ => return false,
                  };
              } 
-         }
-    }
 
     has_audio_file
 
-    }
+}
 
 fn is_music(entry: &DirEntry) -> bool {
     let metadata = fs::metadata(entry.path()).unwrap();
