@@ -75,14 +75,14 @@ impl<I> ListState<I>{
 
 }
 
-pub struct ControlState<'a> {
+pub struct PanelState<'a> {
     pub titles: Vec<&'a str>,
     pub index: usize
 }
 
-impl<'a> ControlState<'a> {
-    fn new(titles: Vec<&'a str>) -> ControlState {
-       ControlState {
+impl<'a> PanelState<'a> {
+    fn new(titles: Vec<&'a str>) -> PanelState {
+       PanelState {
             titles,
             index: 0
         } 
@@ -104,12 +104,12 @@ impl<'a> ControlState<'a> {
 pub struct TabState<'a> {
     pub titles: Vec<&'a str>,
     pub index: usize,
-    pub panels: ControlState<'a>
+    pub panels: PanelState<'a>
 }
 
 
 impl<'a> TabState<'a>{
-    fn new(title: Vec<&'a str>, panels: ControlState<'a>) -> TabState<'a>{
+    fn new(title: Vec<&'a str>, panels: PanelState<'a>) -> TabState<'a>{
         TabState { 
             titles: title, 
             index: 0, 
@@ -236,7 +236,9 @@ pub struct App<'a> {
     pub track_x: Sender<Track>,
     pub track_p_x: Sender<bool>,
     pub track_i_rx: Receiver<bool>,
-    pub track_atp_x: Sender<Track>
+    pub track_atp_x: Sender<Track>,
+    pub is_search_active: bool,
+    pub search_input: String
 }
 
 impl<'a> App<'a> {
@@ -254,7 +256,7 @@ impl<'a> App<'a> {
             directory: ListState::new(Vec::new()),
             directory_files: ListState::new(Vec::new()),
             playing_track_index: None,
-            tabs: TabState::new(TABS.to_vec(),ControlState::new(PANEL.to_vec())),
+            tabs: TabState::new(TABS.to_vec(),PanelState::new(PANEL.to_vec())),
             is_quit: false,
             is_playing: false,
             is_playlist_added: false,
@@ -262,12 +264,18 @@ impl<'a> App<'a> {
             track_x,
             track_p_x,
             track_i_rx,
-            track_atp_x
+            track_atp_x,
+            is_search_active: false,
+            search_input: String::new()
         };
     }
 
     pub fn set_should_select(&mut self, state: bool){
         self.should_select = state;
+    }
+
+    pub fn set_is_search_active(&mut self){
+        self.is_search_active = !self.is_search_active;
     }
 
     pub fn on_key_up(&mut self){
@@ -371,8 +379,10 @@ impl<'a> App<'a> {
 
     pub fn on_key(&mut self, c: char){
         if c.is_digit(10) { 
-            self.handle_tab(c.to_digit(10).unwrap() as usize) ;
-            self.reset_is_playlist_added();
+            if c.to_digit(10).unwrap() as usize <= self.tabs.titles.len(){
+                self.handle_tab(c.to_digit(10).unwrap() as usize) ;
+                self.reset_is_playlist_added();
+            }
         } else if c == 'q' { 
             self.is_quit = true;
         } else {
@@ -380,7 +390,7 @@ impl<'a> App<'a> {
             // check if current panel has any item, 
             // otherwise disable keypress 
             // (only tab selection available).
-            if self.get_current_item_lists() > 0 {
+            if self.get_current_item_lists() > 0 || self.tabs.get_current_title() == "search"{
                match c {
                  '\n' => match self.tabs.get_current_title() {
                      "playlist" => self.on_select_playing(),
@@ -395,6 +405,9 @@ impl<'a> App<'a> {
                              },
                              _ => {}
                          }
+                     },
+                     "search" => { 
+                        self.set_is_search_active();
                      },
                      _ => {  }
                  },
@@ -618,3 +631,15 @@ fn get_tracks_from_path(path: &PathBuf) -> Vec<Track>{
         lists
 }
 
+
+
+
+// helper.
+pub fn get_input() -> String{
+        let mut input = String::new();
+        match io::stdin().read_line(&mut input) {
+            Ok(i) => { println!("input = {}", i);},
+            Err(e) => {},
+        }
+        input.trim().to_string()
+}

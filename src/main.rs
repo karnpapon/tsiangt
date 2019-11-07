@@ -89,6 +89,10 @@ fn main() -> Result<(), failure::Error> {
         }
     };
 
+    if app.is_search_active {
+        get_input();
+    }
+
     thread::spawn(move|| {
         loop{
 
@@ -119,6 +123,7 @@ fn main() -> Result<(), failure::Error> {
         if let Event::Input(input) = handle_events.next()? {
          match input {
                  Key::Char(c) => { app.on_key(c)}, 
+                 Key::Delete => { },
                  Key::Esc => { app.is_quit = true },
                  Key::Up => { app.reset_playing_track_index(); app.on_key_up() },
                  Key::Down => { app.reset_playing_track_index(); app.on_key_down();},

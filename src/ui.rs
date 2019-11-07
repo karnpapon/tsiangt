@@ -5,8 +5,8 @@ use crate::custom_widgets::{Table as PlaylistTable, Row as PlaylistRow};
 use std::io;
 use tui::{ Terminal, Frame };
 use tui::backend::{ Backend };
-use tui::widgets::{Widget, Block, Borders, Tabs, SelectableList};
-use tui::layout::{Layout, Constraint, Direction, Rect};
+use tui::widgets::{Widget, Block, Borders, Tabs, Text, Paragraph, SelectableList};
+use tui::layout::{Layout, Constraint, Direction, Alignment, Rect};
 use tui::style::{Color,  Style};
 
 
@@ -26,27 +26,41 @@ pub fn draw<B>(terminal: &mut Terminal<B>, app: &App)  -> Result<(), io::Error>
     where B: Backend {
 
     terminal.draw(|mut f| {
-        let chunks = Layout::default()
+
+        let chunks_main = Layout::default()
             .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
-            .split(f.size());
+            .split(f.size()); 
+
+        let chunk_tab = Layout::default()
+            .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref())
+            .direction(Direction::Horizontal)
+            .split(chunks_main[0]);
+
+        let chunk_body = Layout::default()
+            .constraints([Constraint::Percentage(100)].as_ref())
+            .split(chunks_main[1]);
+
         Tabs::default()
             .block(Block::default().borders(Borders::ALL).title(app.title))
             .titles(&app.tabs.titles)
             .style(Style::default())
             .highlight_style(Style::default().fg(Color::Green))
             .select(app.tabs.index)
-            .render(&mut f, chunks[0]);
+            .render(&mut f, chunk_tab[0]);
+        draw_search_input(&mut f, &app, chunk_tab[1]);
+
+
         match app.tabs.index {
-            0 => draw_first_tab(&mut f, &app, chunks[1]),
-            1 => draw_second_tab(&mut f, &app, chunks[1]),
-            2 => draw_third_tab(&mut f, &app, chunks[1]),
+            0 => draw_playlist(&mut f, &app, chunk_body[0]),
+            1 => draw_library(&mut f, &app, chunk_body[0]),
+            2 => draw_search(&mut f, &app, chunk_body[0]),
             _ => {}
         };
     })
   }
 
 
-fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
+fn draw_playlist<B>(f: &mut Frame<B>, app: &App, area: Rect)
     where B: Backend {
 
     let chunks = Layout::default()
@@ -79,7 +93,7 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
          items.push(get_init_selection_table_state("No song added.."));
     }
 
-    let highlight_state = true;
+    let highlight_state = false;
 
     let header = get_header(&area);
 
@@ -95,7 +109,7 @@ fn draw_first_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
     );
 }
 
-fn draw_second_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
+fn draw_library<B>(f: &mut Frame<B>, app: &App, area: Rect)
         where B: Backend
 {
       let chunks = Layout::default()
@@ -107,7 +121,7 @@ fn draw_second_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
     draw_directory_files(f, app, chunks[1]);
 }
 
-fn draw_third_tab<B>(f: &mut Frame<B>, app: &App, area: Rect) 
+fn draw_search<B>(f: &mut Frame<B>, app: &App, area: Rect) 
     where B: Backend
 {
 
@@ -119,7 +133,7 @@ fn draw_third_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
 
     items.push(get_init_selection_table_state("No Result found.."));
 
-    let highlight_state = true;
+    let highlight_state = false;
 
     let header = get_header(&area);
    
@@ -135,6 +149,31 @@ fn draw_third_tab<B>(f: &mut Frame<B>, app: &App, area: Rect)
     );
 }
 
+
+
+fn draw_search_input<B>(f: &mut Frame<B>, app: &App, area: Rect) 
+    where B: Backend
+{
+
+     let chunks = Layout::default()
+        .constraints([Constraint::Percentage(100)] .as_ref())
+        .split(area);
+
+
+    // Input box
+    Paragraph::new([Text::raw(&app.search_input)].iter())
+        .style(Style::default().fg(Color::Yellow))
+        .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .border_style(get_color(app.is_search_active))
+        )    
+        .render(f, chunks[0]);
+
+    //io::stdout().flush().ok();
+
+}
 
 
 fn draw_directory<B>(f: &mut Frame<B>, app: &App, area: Rect)
