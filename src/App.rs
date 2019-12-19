@@ -141,20 +141,11 @@ pub struct Track {
 impl Track {
 
     pub fn new(path: PathBuf) -> Result<Track, ()> {
+        //NOTE: id3 has problem reading wav file's tag;
         let tag = Tag::read_from_path(&path);
         
         if tag.is_err() {
             return Err( () );
-            //return Ok(Track {
-            //     file_path: "".to_string(),
-            //     title: "".to_string(),
-            //     artist: "".to_string(),
-            //     album_artist: "".to_string(),
-            //     album: "".to_string(),
-            //     year: 0,
-            //     track_num: 0,
-            //     duration: 0,
-            //})
         }
 
         let safe_tag = Tag::read_from_path(&path).unwrap();
@@ -537,11 +528,12 @@ fn is_music_in_folder(path: &PathBuf) -> bool {
     let mut has_audio_file: bool = false;
 
              if let Some(extension) = path.extension() {
-                 match extension.to_str() {
-                     Some("mp3") =>  has_audio_file = true,
-                     Some("flac") => has_audio_file = true,
-                     Some("ogg") => has_audio_file = true,
-                     Some("wav") => has_audio_file = true,
+                 has_audio_file = match extension.to_str() {
+                     Some("mp3") =>  true,
+                     Some("flac") => true,
+                     Some("ogg") => true,
+                     Some("wav") => true,
+                     Some("m4a") => true,
                      _ => return false,
                  };
              } 
@@ -562,6 +554,7 @@ fn is_music(entry: &DirEntry) -> bool {
             Some("flac") => return true,
             Some("ogg") => return true,
             Some("wav") => return true,
+            Some("m4a") => return true,
             _ => return false,
         };
     } else {
@@ -638,12 +631,14 @@ fn get_tracks_from_path(path: &PathBuf) -> Vec<Track>{
         if let Ok(entry) = result {
             if is_music(&entry) {
                 let track = Track::new(entry.into_path());
+                //println!("this is valid music {:?}", track);
                 if let Ok(t) = track{
                    lists.push(t);
                 }
             }
         }
 	}
+
 
         lists
 }

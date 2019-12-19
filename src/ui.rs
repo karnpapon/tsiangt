@@ -237,7 +237,7 @@ fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
               .collect::<Vec<TableItem>>();
     } else {
         is_track_highlighted = false;
-        items.push(get_init_selection_table_state("Error.."));
+        items.push(get_init_selection_table_state("error"));
     };
 
 
