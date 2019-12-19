@@ -217,19 +217,29 @@ fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
     where B: Backend 
 {
 
-   let items = app
-       .directory_files
-       .items
-       .iter()
-       .map(|item| TableItem {
-           id: item.title.to_string(),
-           format: vec![
-               item.title.to_string().to_owned(),
-               item.artist.to_string().to_owned(),
-               item.album.to_string().to_owned(),
-           ],
-       })
-       .collect::<Vec<TableItem>>();
+    let mut items = Vec::new();
+    let is_track_highlighted: bool;
+
+    if app.is_track_valid {
+         is_track_highlighted = true;
+         items = app
+              .directory_files
+              .items
+              .iter()
+              .map(|item| TableItem {
+                  id: item.title.to_string(),
+                  format: vec![
+                      item.title.to_string().to_owned(),
+                      item.artist.to_string().to_owned(),
+                      item.album.to_string().to_owned(),
+                  ],
+              })
+              .collect::<Vec<TableItem>>();
+    } else {
+        is_track_highlighted = false;
+        items.push(get_init_selection_table_state("Error.."));
+    };
+
 
     let header = get_header(&area);
 
@@ -241,7 +251,7 @@ fn draw_directory_files<B>(f: &mut Frame<B>, app: &App, area: Rect)
         &items,
         true,
         *&app.tabs.panels.index == 1,
-        false
+        is_track_highlighted
     );
 }
 

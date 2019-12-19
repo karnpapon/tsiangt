@@ -138,8 +138,10 @@ fn main() -> Result<(), failure::Error> {
                  Key::Right => match app.tabs.get_current_title(){ 
                      "playlist" => {},
                      "library" => { 
-                         app.reset_playing_track_index();
-                         app.tabs.panels.next_panel();
+                         if app.is_track_valid {
+                            app.reset_playing_track_index();
+                            app.tabs.panels.next_panel();
+                         }
                      }
                      _ => {}
                  },

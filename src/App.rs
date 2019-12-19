@@ -144,7 +144,17 @@ impl Track {
         let tag = Tag::read_from_path(&path);
         
         if tag.is_err() {
-            return Err(());
+            return Err( () );
+            //return Ok(Track {
+            //     file_path: "".to_string(),
+            //     title: "".to_string(),
+            //     artist: "".to_string(),
+            //     album_artist: "".to_string(),
+            //     album: "".to_string(),
+            //     year: 0,
+            //     track_num: 0,
+            //     duration: 0,
+            //})
         }
 
         let safe_tag = Tag::read_from_path(&path).unwrap();
@@ -238,6 +248,7 @@ pub struct App<'a> {
     pub track_i_rx: Receiver<bool>,
     pub track_atp_x: Sender<Track>,
     pub is_search_active: bool,
+    pub is_track_valid: bool,
     pub search_input: String
 }
 
@@ -266,6 +277,7 @@ impl<'a> App<'a> {
             track_i_rx,
             track_atp_x,
             is_search_active: false,
+            is_track_valid: true,
             search_input: String::new()
         };
     }
@@ -400,8 +412,10 @@ impl<'a> App<'a> {
                                  self.on_select_directory();
                              },
                              "Files" => { 
-                                 self.set_should_select(true);
-                                 self.on_select_directory_files_playing()
+                                 if self.is_track_valid {
+                                    self.set_should_select(true);
+                                    self.on_select_directory_files_playing()
+                                 }
                              },
                              _ => {}
                          }
@@ -469,7 +483,10 @@ impl<'a> App<'a> {
         let path = self.directory.get_selected_item();
         let files = get_tracks_from_path(&PathBuf::from(path));
         if files.len() > 0 {
+            self.is_track_valid = true;
             self.set_directory_files(files); 
+        } else {
+            self.is_track_valid = false; 
         }
     }
 
